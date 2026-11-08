@@ -1,11 +1,12 @@
 from fastapi import Depends, FastAPI, Request
 from fastapi.staticfiles import StaticFiles
-from fastapi.templating import Jinja2Templates
 from starlette.middleware.sessions import SessionMiddleware
 from starlette.responses import RedirectResponse
 
 from app.config import settings
+from app.routers.admin import router as admin_router
 from app.security import RedirectToLogin, current_member, get_csrf_token
+from app.templating import templates
 
 app = FastAPI(title="Liste de Noël")
 
@@ -19,7 +20,7 @@ app.add_middleware(
 
 app.mount("/static", StaticFiles(directory="app/static"), name="static")
 
-templates = Jinja2Templates(directory="app/templates")
+app.include_router(admin_router)
 
 
 @app.exception_handler(RedirectToLogin)

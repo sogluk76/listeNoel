@@ -1,4 +1,5 @@
 import json
+import re
 from base64 import b64encode
 
 import itsdangerous
@@ -45,6 +46,18 @@ def login_as():
         test_client.cookies.set("session", signer.sign(payload).decode("utf-8"))
 
     return _login_as
+
+
+@pytest.fixture
+def extract_csrf_token():
+    """Lit le jeton CSRF posé par `base.html` dans `hx-headers`, pour soumettre un formulaire."""
+
+    def _extract(html: str) -> str:
+        match = re.search(r'X-CSRF-Token":\s*"([^"]+)"', html)
+        assert match, "jeton CSRF introuvable dans la page"
+        return match.group(1)
+
+    return _extract
 
 
 def _create_member(session, first_name):

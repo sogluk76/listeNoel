@@ -5,6 +5,14 @@ def test_accueil_anonyme_redirige_vers_login(client):
     assert response.headers["location"] == "/login"
 
 
+def test_accueil_admin_connecte_refuse(client, admin, login_as):
+    login_as(client, admin)
+
+    response = client.get("/")
+
+    assert response.status_code == 403
+
+
 def test_accueil_membre_connecte_repond_200(client, alice, login_as):
     login_as(client, alice)
 
