@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+
+{% block title %}Modifier {{ membre.first_name }}{% endblock %}
+
+{% block content %}
+<h2>Modifier {{ membre.first_name }}</h2>
+{% if erreur %}
+<p role="alert">{{ erreur }}</p>
+{% endif %}
+{% if succes %}
+<p>Compte mis à jour.</p>
+{% endif %}
+<form method="post" action="/admin/membres/{{ membre.id }}/modifier" enctype="multipart/form-data">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+    <label for="first_name">Prénom</label>
+    <input type="text" id="first_name" name="first_name" maxlength="50" required value="{{ membre.first_name }}">
+
+    {% if membre.photo_path %}
+    <img src="/media/{{ membre.photo_path }}" alt="" width="80" height="80">
+    <label><input type="checkbox" name="remove_photo" value="true"> Supprimer la photo</label>
+    {% endif %}
+    <label for="photo">Remplacer la photo (JPEG, PNG ou WebP, 5 Mo maximum)</label>
+    <input type="file" id="photo" name="photo" accept="image/jpeg,image/png,image/webp">
+
+    <label>
+        <input type="checkbox" name="active" value="true" {% if membre.is_active %}checked{% endif %}>
+        Compte actif
+    </label>
+
+    <button type="submit">Enregistrer</button>
+</form>
+<p><a href="/admin/membres">Retour à la liste</a></p>
+{% endblock %}

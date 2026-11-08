@@ -41,3 +41,15 @@ Une entrée par incrément livré (tests verts). Format :
 - Décisions validées :
   - `current_member`/`current_admin` : 403 si mauvais rôle, redirection (`/login` ou `/admin/login`) si pas de session ou session invalidée — pas seulement « 403 » comme le résumait `04-architecture.md`, corrigé dans la doc.
   - Deux bugs corrigés avant mise en service : `verify_password()` ne capturait que `VerifyMismatchError` (un hash malformé faisait planter au lieu d'échouer proprement) ; les bases SQLite en mémoire perdaient leur état entre requêtes FastAPI sans `StaticPool`.
+
+## 2026-11-08 — US-05 (incréments 1 et 2) — Créer un compte membre
+- Fait :
+  - Incrément 1 : `create_member()` dans `app/services/users.py` (prénom unique insensible à la casse, confirmation du mot de passe, longueur minimale), route `/admin/membres/nouveau` (GET + POST, CSRF, réservée à l'admin) et son template.
+  - Incrément 2 : `app/services/images.py` (`save_profile_photo()` — validation Pillow du contenu réel, formats JPEG/PNG/WebP, 5 Mo max, redimensionnement 800 px maximum sur le plus grand côté sans recadrage), champ photo optionnel branché sur le formulaire.
+  - `create_admin()` déplacé de `app/cli.py` vers `app/services/users.py` pour partager sa validation avec `create_member()`.
+  - Fixture `_media_dir_isole` (autouse) ajoutée pour que tous les tests écrivent dans un dossier temporaire, jamais dans le vrai `media/`.
+- Fichiers : `app/services/users.py`, `app/services/images.py`, `app/cli.py`, `app/routers/admin.py`, `app/templates/admin/nouveau_membre.html`, `tests/conftest.py`, `tests/test_services_users.py`, `tests/test_services_images.py`, `tests/test_admin_membres.py`, `tests/test_cli.py`.
+- Tests : 26 ajoutés, 77 verts au total.
+- Décisions validées :
+  - **PO-09** tranché : mot de passe, 8 caractères minimum, sans autre contrainte. Reporté en RG-10.
+  - **PO-10** tranché : redimensionnement des images à 800 px maximum sur le plus grand côté, ratio conservé. Reporté en RG-17 (s'applique aussi aux photos de profil de US-06/US-23).

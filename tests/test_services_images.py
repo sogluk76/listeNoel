@@ -2,7 +2,12 @@ import pytest
 from PIL import Image
 
 from app.config import settings
-from app.services.images import MAX_DIMENSION, InvalidImageError, save_profile_photo
+from app.services.images import (
+    MAX_DIMENSION,
+    InvalidImageError,
+    delete_profile_photo,
+    save_profile_photo,
+)
 
 
 def test_image_valide_enregistree(make_image_bytes):
@@ -58,3 +63,17 @@ def test_fichier_trop_volumineux_refuse():
 
     with pytest.raises(InvalidImageError):
         save_profile_photo(enorme)
+
+
+def test_delete_profile_photo_supprime_le_fichier(make_image_bytes):
+    chemin = save_profile_photo(make_image_bytes("PNG", (50, 50)))
+    destination = settings.media_dir / chemin
+    assert destination.exists()
+
+    delete_profile_photo(chemin)
+
+    assert not destination.exists()
+
+
+def test_delete_profile_photo_tolere_fichier_absent():
+    delete_profile_photo("inexistant.png")

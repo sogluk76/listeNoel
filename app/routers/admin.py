@@ -1,10 +1,18 @@
-from fastapi import APIRouter, Depends, File, Form, Request, UploadFile
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile
 from sqlalchemy.orm import Session
 from starlette.responses import RedirectResponse
 
 from app.db import get_db
 from app.security import current_admin, get_csrf_token, verify_csrf
-from app.services.users import AuthenticationError, authenticate, create_member
+from app.services.users import (
+    AuthenticationError,
+    MemberNotFoundError,
+    authenticate,
+    create_member,
+    get_member,
+    list_members,
+    update_member,
+)
 from app.templating import templates
 
 router = APIRouter(prefix="/admin")
@@ -85,3 +93,76 @@ async def nouveau_membre(
             "succes": f"Compte « {membre.first_name} » créé.",
         },
     )
+
+
+@router.get("/membres")
+def liste_membres(request: Request, db: Session = Depends(get_db), admin=Depends(current_admin)):
+    return templates.TemplateResponse(
+        request,
+        "admin/membres.html",
+        {"csrf_token": get_csrf_token(request), "membres": list_members(db)},
+    )
+
+
+@router.get("/membres/{member_id}/modifier")
+def modifier_membre_form(
+    member_id: int,
+    request: Request,
+    succes: bool = False,
+    db: Session = Depends(get_db),
+    _admin=Depends(current_admin),
+):
+    try:
+        membre = get_member(db, member_id)
+    except MemberNotFoundError as exc:
+        raise HTTPException(status_code=404) from exc
+    return templates.TemplateResponse(
+        request,
+        "admin/modifier_membre.html",
+        {
+            "csrf_token": get_csrf_token(request),
+            "membre": membre,
+            "erreur": None,
+            "succes": succes,
+        },
+    )
+
+
+@router.post("/membres/{member_id}/modifier", dependencies=[Depends(verify_csrf)])
+async def modifier_membre(
+    member_id: int,
+    request: Request,
+    first_name: str = Form(...),
+    active: bool = Form(False),
+    remove_photo: bool = Form(False),
+    photo: UploadFile | None = File(None),
+    db: Session = Depends(get_db),
+    _admin=Depends(current_admin),
+):
+    photo_bytes = await photo.read() if photo is not None and photo.filename else None
+
+    try:
+        membre = update_member(
+            db,
+            member_id,
+            first_name,
+            is_active=active,
+            photo=photo_bytes,
+            remove_photo=remove_photo,
+        )
+    except MemberNotFoundError as exc:
+        raise HTTPException(status_code=404) from exc
+    except ValueError as exc:
+        membre_actuel = get_member(db, member_id)
+        return templates.TemplateResponse(
+            request,
+            "admin/modifier_membre.html",
+            {
+                "csrf_token": get_csrf_token(request),
+                "membre": membre_actuel,
+                "erreur": str(exc),
+                "succes": False,
+            },
+            status_code=400,
+        )
+    return RedirectResponse(f"/admin/membres/{membre.id}/modifier?succes=1", status_code=303)

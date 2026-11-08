@@ -18,8 +18,8 @@ L'ordre des lots est pensé pour avoir un site utilisable au plus tôt. Chaque u
 | | US | Titre |
 |---|---|---|
 | ✅ | US-04 | Se connecter en tant qu'admin |
-| 🟨 | US-05 | Créer un compte membre |
-| ⬜ | US-06 | Modifier ou désactiver un compte |
+| ✅ | US-05 | Créer un compte membre |
+| 🟨 | US-06 | Modifier ou désactiver un compte |
 | ⬜ | US-07 | Réinitialiser un mot de passe / débloquer un compte |
 | ⬜ | US-01 | Se connecter en tant que membre |
 | ⬜ | US-03 | Blocage après 5 échecs |

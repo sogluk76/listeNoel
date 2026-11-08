@@ -40,3 +40,8 @@ def save_profile_photo(content: bytes) -> str:
     image.save(destination)
 
     return str(Path(filename))
+
+
+def delete_profile_photo(path: str) -> None:
+    """Supprime un fichier de `media/`. Tolère un chemin déjà absent."""
+    (settings.media_dir / path).unlink(missing_ok=True)

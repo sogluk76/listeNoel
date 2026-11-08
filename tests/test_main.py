@@ -35,3 +35,25 @@ def test_page_accueil_porte_le_jeton_csrf_en_en_tete_htmx(client, alice, login_a
     response = client.get("/")
 
     assert "X-CSRF-Token" in response.text
+
+
+def test_media_sert_un_fichier_existant(client, make_image_bytes):
+    from app.services.images import save_profile_photo
+
+    chemin = save_profile_photo(make_image_bytes("PNG"))
+
+    response = client.get(f"/media/{chemin}")
+
+    assert response.status_code == 200
+
+
+def test_media_404_si_fichier_absent(client):
+    response = client.get("/media/inexistant.png")
+
+    assert response.status_code == 404
+
+
+def test_media_refuse_le_path_traversal(client):
+    response = client.get("/media/..%2F..%2Fpyproject.toml")
+
+    assert response.status_code == 404

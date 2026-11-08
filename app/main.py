@@ -1,4 +1,5 @@
-from fastapi import Depends, FastAPI, Request
+from fastapi import Depends, FastAPI, HTTPException, Request
+from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from starlette.middleware.sessions import SessionMiddleware
 from starlette.responses import RedirectResponse
@@ -33,3 +34,15 @@ def index(request: Request):
     return templates.TemplateResponse(
         request, "index.html", {"csrf_token": get_csrf_token(request)}
     )
+
+
+@app.get("/media/{filename}")
+def media_file(filename: str):
+    """Sert les photos de profil (RG-17). Route dédiée (et non un montage statique figé au
+    démarrage) pour que `media_dir` reste reconfigurable, notamment par les tests.
+    """
+    media_root = settings.media_dir.resolve()
+    chemin = (media_root / filename).resolve()
+    if not chemin.is_relative_to(media_root) or not chemin.is_file():
+        raise HTTPException(status_code=404)
+    return FileResponse(chemin)
