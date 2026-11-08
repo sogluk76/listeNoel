@@ -13,3 +13,4 @@ Questions à trancher avant ou pendant l'incrément concerné. Claude Code **ne 
 | ☐ PO-07 | Écran de détail Power Apps : il n'a pas été montré, le contenu vient de la sélection faite en atelier | Image, nom, prix, lien, suggéré par, date, boutons | US-15 |
 | ☐ PO-08 | Sauvegarde : fréquence et destination | Copie quotidienne | Lot 6 |
 | ☑ PO-09 | Mot de passe : règles minimales | **Tranché 2026-11-08 : 8 caractères minimum, sans autre contrainte.** Reporté en RG-10. | US-05, US-24 |
+| ☑ PO-10 | Taille de redimensionnement des images (RG-17 ne précisait aucune valeur) | **Tranché 2026-11-08 : 800 px maximum sur le plus grand côté, ratio conservé.** Reporté en RG-17. | US-05, US-06, US-23 |

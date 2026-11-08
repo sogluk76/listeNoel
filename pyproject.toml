@@ -37,4 +37,11 @@ select = ["E", "F", "I", "UP", "B"]
 # FastAPI utilise Depends(...)/Query(...) comme valeur par défaut d'argument : c'est le
 # pattern recommandé par FastAPI lui-même, pas l'anti-pattern que B008 cherche à éviter.
 [tool.ruff.lint.flake8-bugbear]
-extend-immutable-calls = ["fastapi.Depends", "fastapi.Query", "fastapi.Path", "fastapi.Body"]
+extend-immutable-calls = [
+    "fastapi.Depends",
+    "fastapi.Query",
+    "fastapi.Path",
+    "fastapi.Body",
+    "fastapi.Form",
+    "fastapi.File",
+]

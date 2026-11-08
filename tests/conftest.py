@@ -1,3 +1,4 @@
+import io
 import json
 import re
 from base64 import b64encode
@@ -5,6 +6,7 @@ from base64 import b64encode
 import itsdangerous
 import pytest
 from fastapi.testclient import TestClient
+from PIL import Image
 from sqlalchemy.orm import Session
 
 from app.config import settings
@@ -14,6 +16,12 @@ from app.models import Base, User
 from app.security import hash_password
 
 FIXTURE_PASSWORD = "password123"
+
+
+@pytest.fixture(autouse=True)
+def _media_dir_isole(tmp_path, monkeypatch):
+    """Aucun test ne doit écrire dans le vrai dossier media/ du projet."""
+    monkeypatch.setattr(settings, "media_dir", tmp_path)
 
 
 @pytest.fixture
@@ -58,6 +66,16 @@ def extract_csrf_token():
         return match.group(1)
 
     return _extract
+
+
+@pytest.fixture
+def make_image_bytes():
+    def _make(fmt: str = "PNG", size: tuple[int, int] = (100, 100)) -> bytes:
+        buffer = io.BytesIO()
+        Image.new("RGB", size, color="red").save(buffer, format=fmt)
+        return buffer.getvalue()
+
+    return _make
 
 
 def _create_member(session, first_name):

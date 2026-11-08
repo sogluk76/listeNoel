@@ -3,6 +3,7 @@ from sqlalchemy.orm import Session
 
 from app.models import User
 from app.security import hash_password, verify_password
+from app.services.images import InvalidImageError, save_profile_photo
 
 GENERIC_AUTH_ERROR_MESSAGE = "Mot de passe incorrect"  # RG-06 : jamais plus précis
 MIN_PASSWORD_LENGTH = 8  # RG-10 / PO-09
@@ -30,7 +31,9 @@ def _first_name_deja_pris(db: Session, first_name: str) -> bool:
     )
 
 
-def _create_user(db: Session, first_name: str, password: str, role: str) -> User:
+def _create_user(
+    db: Session, first_name: str, password: str, role: str, photo: bytes | None = None
+) -> User:
     first_name = first_name.strip()
     if not first_name:
         raise ValueError("Le prénom est obligatoire.")
@@ -40,7 +43,19 @@ def _create_user(db: Session, first_name: str, password: str, role: str) -> User
     if _first_name_deja_pris(db, first_name):
         raise ValueError(f"Le prénom « {first_name} » est déjà utilisé.")
 
-    user = User(first_name=first_name, password_hash=hash_password(password), role=role)
+    photo_path = None
+    if photo is not None:
+        try:
+            photo_path = save_profile_photo(photo)
+        except InvalidImageError as exc:
+            raise ValueError(str(exc)) from exc
+
+    user = User(
+        first_name=first_name,
+        password_hash=hash_password(password),
+        role=role,
+        photo_path=photo_path,
+    )
     db.add(user)
     db.commit()
     db.refresh(user)
@@ -52,8 +67,14 @@ def create_admin(db: Session, first_name: str, password: str) -> User:
     return _create_user(db, first_name, password, role="admin")
 
 
-def create_member(db: Session, first_name: str, password: str, password_confirmation: str) -> User:
-    """Crée un compte membre actif (US-05). Lève `ValueError` sinon (RG-02, RG-10)."""
+def create_member(
+    db: Session,
+    first_name: str,
+    password: str,
+    password_confirmation: str,
+    photo: bytes | None = None,
+) -> User:
+    """Crée un compte membre actif (US-05). Lève `ValueError` sinon (RG-02, RG-10, RG-17)."""
     if password != password_confirmation:
         raise ValueError("Les mots de passe ne correspondent pas.")
-    return _create_user(db, first_name, password, role="member")
+    return _create_user(db, first_name, password, role="member", photo=photo)

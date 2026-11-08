@@ -1,8 +1,9 @@
+from app.config import settings
 from app.models import User
 from app.security import verify_password
 
 
-def _creer_membre(client, extract_csrf_token, **champs):
+def _creer_membre(client, extract_csrf_token, photo=None, **champs):
     page = client.get("/admin/membres/nouveau")
     token = extract_csrf_token(page.text)
     data = {
@@ -12,7 +13,8 @@ def _creer_membre(client, extract_csrf_token, **champs):
         "csrf_token": token,
         **champs,
     }
-    return client.post("/admin/membres/nouveau", data=data)
+    files = {"photo": photo} if photo is not None else None
+    return client.post("/admin/membres/nouveau", data=data, files=files)
 
 
 def test_formulaire_reserve_a_admin(client):
@@ -83,3 +85,38 @@ def test_mot_de_passe_trop_court_refuse(client, admin, login_as, extract_csrf_to
 
     assert response.status_code == 400
     assert "8 caractères" in response.text
+
+
+def test_photo_valide_enregistree(
+    client, admin, login_as, db_session, extract_csrf_token, make_image_bytes
+):
+    login_as(client, admin)
+
+    response = _creer_membre(
+        client, extract_csrf_token, photo=("photo.png", make_image_bytes("PNG"), "image/png")
+    )
+
+    assert response.status_code == 200
+    membre = db_session.query(User).filter_by(first_name="Denise").one()
+    assert membre.photo_path is not None
+    assert (settings.media_dir / membre.photo_path).exists()
+
+
+def test_fichier_non_image_refuse_a_la_creation(client, admin, login_as, extract_csrf_token):
+    login_as(client, admin)
+
+    response = _creer_membre(
+        client, extract_csrf_token, photo=("photo.jpg", b"pas une image", "image/jpeg")
+    )
+
+    assert response.status_code == 400
+    assert "pas une image valide" in response.text
+
+
+def test_sans_photo_photo_path_reste_none(client, admin, login_as, db_session, extract_csrf_token):
+    login_as(client, admin)
+
+    _creer_membre(client, extract_csrf_token)
+
+    membre = db_session.query(User).filter_by(first_name="Denise").one()
+    assert membre.photo_path is None

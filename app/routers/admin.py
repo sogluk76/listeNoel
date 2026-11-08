@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, Form, Request
+from fastapi import APIRouter, Depends, File, Form, Request, UploadFile
 from sqlalchemy.orm import Session
 from starlette.responses import RedirectResponse
 
@@ -56,16 +56,19 @@ def nouveau_membre_form(request: Request, _admin=Depends(current_admin)):
 
 
 @router.post("/membres/nouveau", dependencies=[Depends(verify_csrf)])
-def nouveau_membre(
+async def nouveau_membre(
     request: Request,
     first_name: str = Form(...),
     password: str = Form(...),
     password_confirmation: str = Form(...),
+    photo: UploadFile | None = File(None),
     db: Session = Depends(get_db),
     _admin=Depends(current_admin),
 ):
+    photo_bytes = await photo.read() if photo is not None and photo.filename else None
+
     try:
-        membre = create_member(db, first_name, password, password_confirmation)
+        membre = create_member(db, first_name, password, password_confirmation, photo=photo_bytes)
     except ValueError as exc:
         return templates.TemplateResponse(
             request,

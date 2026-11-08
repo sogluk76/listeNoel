@@ -39,7 +39,7 @@ Chaque règle a un identifiant `RG-xx` cité dans les user stories et dans les t
 - **RG-14** Champs : nom (obligatoire), prix, lien, image, destinataire (obligatoire). Prix, lien et image sont facultatifs.
 - **RG-15** Prix : montant en euros, décimal ≥ 0 avec 2 décimales maximum, affiché au format français `39,99 €`.
 - **RG-16** Lien : URL `http://` ou `https://`, ouverte dans un nouvel onglet.
-- **RG-17** Image : **une seule** par cadeau, en JPEG, PNG ou WebP, 5 Mo maximum, redimensionnée à l'enregistrement.
+- **RG-17** Image : **une seule** par cadeau, en JPEG, PNG ou WebP, 5 Mo maximum, redimensionnée à l'enregistrement à **800 px maximum sur le plus grand côté** (ratio conservé, pas de recadrage ; PO-10). Même règle pour les photos de profil (US-05, US-06, US-23).
 - **RG-18** Par défaut (« Suggérer pour quelqu'un d'autre » = Non), le destinataire est le membre connecté et le champ « Pour qui ? » n'est pas modifiable.
 - **RG-19** Si « Suggérer » = Oui, le champ « Pour qui ? » propose **les autres membres actifs uniquement** (pas moi), et le formulaire affiche « Idée de : <moi> ».
 - **RG-20** Pour les autres membres, une suggestion affiche « Suggéré par <auteur> ». Le destinataire ne voit jamais la suggestion.

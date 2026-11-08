@@ -10,7 +10,7 @@
 {% if succes %}
 <p>{{ succes }}</p>
 {% endif %}
-<form method="post" action="/admin/membres/nouveau">
+<form method="post" action="/admin/membres/nouveau" enctype="multipart/form-data">
     <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
     <label for="first_name">Prénom</label>
     <input type="text" id="first_name" name="first_name" maxlength="50" required>
@@ -18,6 +18,8 @@
     <input type="password" id="password" name="password" required>
     <label for="password_confirmation">Confirmation</label>
     <input type="password" id="password_confirmation" name="password_confirmation" required>
+    <label for="photo">Photo (JPEG, PNG ou WebP, 5 Mo maximum)</label>
+    <input type="file" id="photo" name="photo" accept="image/jpeg,image/png,image/webp">
     <button type="submit">Créer le compte</button>
 </form>
 <p><a href="/admin">Retour au panel</a></p>
