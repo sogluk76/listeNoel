@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, File, Form, Request, UploadFile
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile
 from sqlalchemy.orm import Session
 from starlette.responses import RedirectResponse
 
@@ -6,9 +6,35 @@ from app.db import get_db
 from app.models import User
 from app.security import current_member, get_csrf_token, verify_csrf
 from app.services.gifts import create_gift
+from app.services.users import MemberNotFoundError, get_active_member
+from app.services.visibility import visible_gifts_for
 from app.templating import templates
 
 router = APIRouter()
+
+
+@router.get("/personnes/{person_id}")
+def liste_cadeaux(
+    person_id: int,
+    request: Request,
+    membre: User = Depends(current_member),
+    db: Session = Depends(get_db),
+):
+    """RG-30 (US-13) : liste de cadeaux d'une personne, filtrée selon le viewer."""
+    try:
+        personne = get_active_member(db, person_id)
+    except MemberNotFoundError as exc:
+        raise HTTPException(status_code=404) from exc
+
+    return templates.TemplateResponse(
+        request,
+        "gifts/liste.html",
+        {
+            "csrf_token": get_csrf_token(request),
+            "personne": personne,
+            "cadeaux": visible_gifts_for(db, membre, personne),
+        },
+    )
 
 
 @router.get("/cadeaux/nouveau")

@@ -116,3 +116,9 @@ Une entrée par incrément livré (tests verts). Format :
 - Fichiers : `app/services/visibility.py`, `app/routers/people.py`, `app/main.py`, `app/templates/people.html`, `tests/conftest.py`, `tests/test_visibility.py`, `tests/test_people.py`.
 - Tests : 12 ajoutés, 167 verts au total.
 - Décisions validées : aucune règle métier nouvelle ; les deux liens de `people.html` pointent vers des routes à construire aux prochaines stories (US-11, US-13).
+
+## 2026-11-09 — US-11 (incrément unique) — Ajouter un cadeau à ma liste
+- Fait : `create_gift()` dans `app/services/gifts.py` (RG-14 à RG-18) et `GET/POST /cadeaux/nouveau` dans `app/routers/gifts.py`, template `gifts/nouveau.html`. `create_gift()` ne prend aucun paramètre destinataire : tant que « Suggérer » n'existe pas (US-12), un cadeau créé ici est toujours pour son auteur par construction, ce qui neutralise une requête forgée sans code mort non testé pour la branche suggestion. Réutilise `save_profile_photo`/`delete_profile_photo` d'`app/services/images.py` tels quels (déjà génériques). Erreurs de validation en `ValueError`, cohérent avec `app/services/users.py`.
+- Fichiers : `app/services/gifts.py`, `app/routers/gifts.py`, `app/templates/gifts/nouveau.html`, `app/main.py`, `tests/test_services_gifts.py`, `tests/test_gifts.py`.
+- Tests : 17 ajoutés, 185 verts au total.
+- Décisions validées : redirection après création vers `/` (liste des personnes) en attendant `/personnes/{id}` (US-13).

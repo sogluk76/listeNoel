@@ -1,4 +1,5 @@
-from app.services.visibility import visible_gift_count
+from app.models import Reservation
+from app.services.visibility import visible_gift_count, visible_gifts_for
 
 
 def test_us10_cadeau_personnel_compte_pour_le_destinataire_lui_meme(db_session, alice, create_gift):
@@ -53,3 +54,80 @@ def test_us10_scenario_alice_et_bob_suit_la_matrice_rg30(
 
     assert visible_gift_count(db_session, alice, alice) == 1
     assert visible_gift_count(db_session, alice, bob) == 2
+
+
+def test_us13_propre_liste_exclut_les_suggestions(db_session, alice, bob, create_gift):
+    create_gift(alice)
+    create_gift(bob, recipient=alice)
+
+    vues = visible_gifts_for(db_session, alice, alice)
+
+    assert len(vues) == 1
+    assert vues[0].gift.author_id == alice.id
+
+
+def test_us13_propre_liste_naffiche_ni_statut_ni_reservants_ni_commentaires(
+    db_session, alice, create_gift
+):
+    create_gift(alice)
+
+    vues = visible_gifts_for(db_session, alice, alice)
+
+    assert vues[0].status is None
+    assert vues[0].reservants == []
+    assert vues[0].comment_count == 0
+    assert vues[0].suggested_by is None
+
+
+def test_us13_liste_dun_autre_inclut_les_suggestions_avec_statut(
+    db_session, alice, bob, create_gift
+):
+    create_gift(bob)
+    create_gift(alice, recipient=bob)
+
+    vues = visible_gifts_for(db_session, alice, bob)
+
+    assert len(vues) == 2
+    suggestion = next(v for v in vues if v.is_suggestion)
+    assert suggestion.suggested_by.id == alice.id
+    assert suggestion.status == "disponible"
+
+
+def test_us13_cadeau_retire_absent_chez_son_auteur_mais_visible_chez_les_autres(
+    db_session, alice, bob, create_gift
+):
+    create_gift(alice, removed=True)
+
+    assert visible_gifts_for(db_session, alice, alice) == []
+
+    vues_bob = visible_gifts_for(db_session, bob, alice)
+    assert len(vues_bob) == 1
+    assert vues_bob[0].is_removed is True
+    assert vues_bob[0].removed_by.id == alice.id
+    assert vues_bob[0].status == "retiré"
+
+
+def test_us13_cadeau_archive_jamais_visible(db_session, alice, bob, create_gift):
+    create_gift(alice, archived_year=2025)
+
+    assert visible_gifts_for(db_session, alice, alice) == []
+    assert visible_gifts_for(db_session, bob, alice) == []
+
+
+def test_us13_statut_achete(db_session, alice, bob, create_gift):
+    create_gift(alice, purchased_by=bob)
+
+    vues = visible_gifts_for(db_session, bob, alice)
+
+    assert vues[0].status == "acheté"
+
+
+def test_us13_statut_reserve_et_reservants(db_session, alice, bob, create_gift):
+    gift = create_gift(alice)
+    db_session.add(Reservation(gift_id=gift.id, user_id=bob.id))
+    db_session.commit()
+
+    vues = visible_gifts_for(db_session, bob, alice)
+
+    assert vues[0].status == "réservé"
+    assert vues[0].reservants[0].id == bob.id

@@ -1,4 +1,4 @@
-from app.models import Gift
+from app.models import Comment, Gift, Reservation
 
 
 def test_us11_formulaire_affiche_pour_membre_connecte(client, alice, login_as):
@@ -58,3 +58,59 @@ def test_us11_destinataire_forge_est_ignore(
 
     cadeau = db_session.query(Gift).filter_by(name="Jeu").one()
     assert cadeau.recipient_id == alice.id
+
+
+def test_us13_personne_inexistante_404(client, alice, login_as):
+    login_as(client, alice)
+
+    response = client.get("/personnes/9999")
+
+    assert response.status_code == 404
+
+
+def test_us13_personne_desactivee_404(client, alice, bob, login_as, db_session):
+    bob.is_active = False
+    db_session.commit()
+    login_as(client, alice)
+
+    response = client.get(f"/personnes/{bob.id}")
+
+    assert response.status_code == 404
+
+
+def test_us13_admin_comme_personne_404(client, alice, admin, login_as):
+    login_as(client, alice)
+
+    response = client.get(f"/personnes/{admin.id}")
+
+    assert response.status_code == 404
+
+
+def test_us13_propre_liste_ne_revele_rien_sur_une_suggestion_cachee(
+    client, alice, bob, create_gift, login_as, db_session
+):
+    gift = create_gift(bob, recipient=alice, name="Cadeau secret")
+    db_session.add(Comment(gift_id=gift.id, author_id=bob.id, content="commentaire secret"))
+    db_session.add(Reservation(gift_id=gift.id, user_id=bob.id))
+    db_session.commit()
+    login_as(client, alice)
+
+    response = client.get(f"/personnes/{alice.id}")
+
+    assert "Cadeau secret" not in response.text
+    assert "commentaire secret" not in response.text
+    assert "Suggéré" not in response.text
+
+
+def test_us13_liste_dun_autre_affiche_statut_et_reservants(
+    client, alice, bob, create_gift, login_as, db_session
+):
+    gift = create_gift(bob, name="Cadeau de Bob")
+    db_session.add(Reservation(gift_id=gift.id, user_id=alice.id))
+    db_session.commit()
+    login_as(client, alice)
+
+    response = client.get(f"/personnes/{bob.id}")
+
+    assert "réservé" in response.text
+    assert "Alice" in response.text

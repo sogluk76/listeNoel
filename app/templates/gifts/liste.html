@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+
+{% block title %}Liste de {{ personne.first_name }}{% endblock %}
+
+{% block content %}
+<a href="/">&larr; Liste des personnes</a>
+<h2>{{ personne.first_name }}</h2>
+
+<ul>
+    {% for vue in cadeaux %}
+    <li>
+        {% if vue.gift.image_path %}
+        <img src="/media/{{ vue.gift.image_path }}" alt="" width="60" height="60">
+        {% endif %}
+        <a href="/cadeaux/{{ vue.gift.id }}">{{ vue.gift.name }}</a>
+        {% if vue.gift.price is not none %}
+        {{ vue.gift.price|prix_fr }}
+        {% endif %}
+        {% if vue.suggested_by %}
+        <em>Suggéré par {{ vue.suggested_by.first_name }}</em>
+        {% endif %}
+        {% if vue.is_removed %}
+        <em>Retiré par {{ vue.removed_by.first_name }}</em>
+        {% endif %}
+        {% if vue.status %}
+        <span>{{ vue.status }}</span>
+        {% if vue.reservants %}
+        <span>Réservé par {{ vue.reservants | map(attribute="first_name") | join(", ") }}</span>
+        {% endif %}
+        <span>💬 {{ vue.comment_count }}</span>
+        {% endif %}
+    </li>
+    {% endfor %}
+</ul>
+{% endblock %}

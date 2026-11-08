@@ -29,7 +29,7 @@ L'ordre des lots est pensé pour avoir un site utilisable au plus tôt. Chaque u
 | | US | Titre |
 |---|---|---|
 | ✅ | US-10 | Consulter la liste des personnes |
-| ⬜ | US-11 | Ajouter un cadeau à ma liste |
+| ✅ | US-11 | Ajouter un cadeau à ma liste |
 | ⬜ | US-13 | Consulter la liste de cadeaux d'une personne |
 | ⬜ | US-12 | Suggérer un cadeau pour quelqu'un |
 | ⬜ | US-15 | Consulter le détail d'un cadeau |

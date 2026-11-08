@@ -1,4 +1,5 @@
 from datetime import UTC, datetime
+from decimal import Decimal
 from zoneinfo import ZoneInfo
 
 from fastapi.templating import Jinja2Templates
@@ -26,3 +27,13 @@ def est_bloque(membre) -> bool:
 
 
 templates.env.filters["est_bloque"] = est_bloque
+
+
+def format_price_fr(value: Decimal | None) -> str:
+    """RG-15 : format français, ex. `39,99 €`."""
+    if value is None:
+        return ""
+    return f"{value:.2f}".replace(".", ",") + " €"
+
+
+templates.env.filters["prix_fr"] = format_price_fr

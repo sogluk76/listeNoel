@@ -141,6 +141,19 @@ def get_member(db: Session, member_id: int) -> User:
     return user
 
 
+def get_active_member(db: Session, member_id: int) -> User:
+    """Un compte membre **actif** par id (RG-11/RG-12) : un compte désactivé ou l'admin
+    lèvent `MemberNotFoundError`, pour que l'appelant renvoie un 404 identique aux deux cas."""
+    user = (
+        db.query(User)
+        .filter(User.id == member_id, User.role == "member", User.is_active.is_(True))
+        .first()
+    )
+    if user is None:
+        raise MemberNotFoundError
+    return user
+
+
 def _clear_lockout(member: User) -> None:
     member.failed_login_count = 0
     member.locked_until = None
