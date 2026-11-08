@@ -31,6 +31,7 @@ liste-noel/
 │   ├── db.py                # engine, session, PRAGMA foreign_keys
 │   ├── models.py            # modèles SQLAlchemy
 │   ├── security.py          # hachage, jeton CSRF, dépendances current_member / current_admin
+│   ├── templating.py        # instance Jinja2Templates partagée par main.py et les routers
 │   ├── services/            # règles métier, sans HTTP
 │   │   ├── visibility.py    # ⚠️ matrice RG-30 : seul endroit qui décide de ce qui est visible
 │   │   ├── gifts.py
@@ -60,7 +61,7 @@ liste-noel/
 
 1. **Les services portent les règles métier**, les routers ne font que HTTP + templates. Les services sont testables sans serveur.
 2. **Toute lecture de cadeaux/commentaires/réservations côté membre passe par `services/visibility.py`.** Aucune requête directe dans un router.
-3. **Contrôle d'accès par dépendances FastAPI** : `current_member` (403 si admin ou non connecté) et `current_admin` (403 si membre).
+3. **Contrôle d'accès par dépendances FastAPI** : `current_member`/`current_admin` renvoient 403 si la session a le mauvais rôle, et redirigent vers la bonne page de connexion (`/login` ou `/admin/login`) s'il n'y a pas de session valide (RG-09). Elles relisent systématiquement le rôle et le statut actif en base, jamais depuis un cache en session, pour qu'un compte désactivé perde l'accès dès la requête suivante (RG-11).
 4. **Pas de JavaScript maison** au-delà de HTMX, sauf besoin justifié et validé.
 
 ## Sécurité

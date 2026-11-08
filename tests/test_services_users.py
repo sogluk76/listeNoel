@@ -1,6 +1,8 @@
 import pytest
 
-from app.services.users import AuthenticationError, authenticate
+from app.models import User
+from app.security import verify_password
+from app.services.users import AuthenticationError, authenticate, create_admin, create_member
 
 
 def test_authenticate_membre_reussit(db_session, alice):
@@ -59,3 +61,67 @@ def test_authenticate_message_generique_identique_dans_tous_les_cas(db_session, 
             messages.add(str(exc))
 
     assert len(messages) == 1
+
+
+def test_create_admin_cree_un_compte_role_admin(db_session):
+    admin = create_admin(db_session, "Admin", "motdepasse123")
+
+    assert admin.role == "admin"
+    assert admin.is_active is True
+    assert verify_password("motdepasse123", admin.password_hash)
+
+
+def test_create_admin_refuse_prenom_deja_pris_meme_casse_differente(db_session, alice):
+    with pytest.raises(ValueError):
+        create_admin(db_session, "alice", "motdepasse123")
+
+
+def test_create_admin_refuse_mot_de_passe_trop_court(db_session):
+    with pytest.raises(ValueError):
+        create_admin(db_session, "Admin", "court1")
+
+
+def test_create_admin_refuse_prenom_vide(db_session):
+    with pytest.raises(ValueError):
+        create_admin(db_session, "   ", "motdepasse123")
+
+
+def test_create_member_cree_un_compte_actif_role_member(db_session):
+    membre = create_member(db_session, "Denise", "motdepasse123", "motdepasse123")
+
+    assert membre.role == "member"
+    assert membre.is_active is True
+    assert verify_password("motdepasse123", membre.password_hash)
+
+
+def test_create_member_mot_de_passe_stocke_hache(db_session):
+    membre = create_member(db_session, "Denise", "motdepasse123", "motdepasse123")
+
+    assert membre.password_hash != "motdepasse123"
+    stocke = db_session.query(User).filter_by(first_name="Denise").one()
+    assert stocke.password_hash == membre.password_hash
+
+
+def test_create_member_refuse_prenom_deja_pris_meme_casse_differente(db_session, alice):
+    with pytest.raises(ValueError):
+        create_member(db_session, "alice", "motdepasse123", "motdepasse123")
+
+
+def test_create_member_refuse_prenom_deja_pris_par_un_admin(db_session, admin):
+    with pytest.raises(ValueError):
+        create_member(db_session, "Admin", "motdepasse123", "motdepasse123")
+
+
+def test_create_member_refuse_confirmation_differente(db_session):
+    with pytest.raises(ValueError):
+        create_member(db_session, "Denise", "motdepasse123", "autre-mot-de-passe")
+
+
+def test_create_member_refuse_mot_de_passe_trop_court(db_session):
+    with pytest.raises(ValueError):
+        create_member(db_session, "Denise", "court1", "court1")
+
+
+def test_create_member_refuse_prenom_vide(db_session):
+    with pytest.raises(ValueError):
+        create_member(db_session, "   ", "motdepasse123", "motdepasse123")

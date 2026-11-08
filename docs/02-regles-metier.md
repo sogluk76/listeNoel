@@ -26,7 +26,7 @@ Chaque règle a un identifiant `RG-xx` cité dans les user stories et dans les t
 - **RG-07** La session dure **30 jours**. Un bouton de déconnexion est disponible depuis le profil.
 - **RG-08** L'admin se connecte sur une page séparée `/admin/login`, avec identifiant + mot de passe.
 - **RG-09** Un membre n'accède jamais au panel admin, et l'admin n'accède jamais aux écrans membres. Toute tentative renvoie une erreur 403 ou une redirection vers la bonne page de connexion.
-- **RG-10** Les mots de passe sont stockés **hachés** (Argon2), jamais en clair. L'admin définit le mot de passe initial et chaque membre peut ensuite changer le sien.
+- **RG-10** Les mots de passe sont stockés **hachés** (Argon2), jamais en clair. L'admin définit le mot de passe initial et chaque membre peut ensuite changer le sien. Longueur minimale : **8 caractères**, sans autre contrainte (PO-09).
 - **RG-11** Un compte désactivé ne peut plus se connecter, n'apparaît plus dans les listes de personnes et ses cadeaux sont masqués. Ses données sont conservées.
 
 ## Liste des personnes

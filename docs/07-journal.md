@@ -30,3 +30,14 @@ Une entrée par incrément livré (tests verts). Format :
 - Décisions validées :
   - HTMX vendorisé plutôt que chargé depuis un CDN (indépendance réseau, pas de hash d'intégrité à maintenir).
   - Mot de passe de la commande `create-admin` : 8 caractères minimum, par cohérence avec la proposition de PO-09 — **PO-09 reste néanmoins ouvert**, cette valeur n'est appliquée ici qu'à la création du compte admin technique, pas encore tranchée pour US-05/US-24.
+
+## 2026-11-08 — US-04 (incréments 1 et 2) — Se connecter en tant qu'admin
+- Fait :
+  - Incrément 1 : `app/services/users.py` (`authenticate()`, message générique RG-06), dépendances `current_member`/`current_admin` dans `app/security.py` (RG-09, RG-11 : relisent toujours le rôle/statut en base, jamais mis en cache en session), `/` protégée par `current_member`.
+  - Incrément 2 : router `app/routers/admin.py` (`/admin/login`, `/admin`), templates `admin/login.html` et `admin/dashboard.html` (placeholder), `app/templating.py` pour partager l'instance Jinja2 entre routers.
+  - Blocage après 5 échecs (RG-05) volontairement **laissé hors scope** : aucun critère d'acceptation testable de US-04 ne le couvre, et PO-01 (durée du blocage) n'est pas tranché. Sera construit avec US-03, pour membre et admin à la fois.
+- Fichiers : `app/services/users.py`, `app/security.py`, `app/main.py`, `app/db.py`, `app/templating.py`, `app/routers/admin.py`, `app/templates/admin/*.html`, `tests/conftest.py` (fixtures `client`, `login_as`, `extract_csrf_token`), `tests/test_services_users.py`, `tests/test_access.py`, `tests/test_admin_auth.py`, `tests/test_main.py`.
+- Tests : 22 ajoutés, 51 verts au total.
+- Décisions validées :
+  - `current_member`/`current_admin` : 403 si mauvais rôle, redirection (`/login` ou `/admin/login`) si pas de session ou session invalidée — pas seulement « 403 » comme le résumait `04-architecture.md`, corrigé dans la doc.
+  - Deux bugs corrigés avant mise en service : `verify_password()` ne capturait que `VerifyMismatchError` (un hash malformé faisait planter au lieu d'échouer proprement) ; les bases SQLite en mémoire perdaient leur état entre requêtes FastAPI sans `StaticPool`.

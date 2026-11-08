@@ -12,4 +12,4 @@ Questions à trancher avant ou pendant l'incrément concerné. Claude Code **ne 
 | ☐ PO-06 | Compteur RG-13 : faut-il exclure les cadeaux déjà achetés ? | Non, ils sont comptés | US-10 |
 | ☐ PO-07 | Écran de détail Power Apps : il n'a pas été montré, le contenu vient de la sélection faite en atelier | Image, nom, prix, lien, suggéré par, date, boutons | US-15 |
 | ☐ PO-08 | Sauvegarde : fréquence et destination | Copie quotidienne | Lot 6 |
-| ☐ PO-09 | Mot de passe : règles minimales | 8 caractères minimum, sans autre contrainte | US-05, US-24 |
+| ☑ PO-09 | Mot de passe : règles minimales | **Tranché 2026-11-08 : 8 caractères minimum, sans autre contrainte.** Reporté en RG-10. | US-05, US-24 |

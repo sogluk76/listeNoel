@@ -1,48 +1,8 @@
-import pytest
 from sqlalchemy.orm import Session
 
-from app.cli import create_admin, main
+from app.cli import main
 from app.db import create_db_engine
 from app.models import Base, User
-from app.security import verify_password
-
-
-def test_create_admin_cree_un_compte_role_admin(db_session):
-    admin = create_admin("Admin", "motdepasse123", session=db_session)
-
-    assert admin.role == "admin"
-    assert admin.first_name == "Admin"
-    assert verify_password("motdepasse123", admin.password_hash)
-
-
-def test_mot_de_passe_stocke_hache(db_session):
-    admin = create_admin("Admin", "motdepasse123", session=db_session)
-
-    assert admin.password_hash != "motdepasse123"
-    stocke = db_session.query(User).filter_by(first_name="Admin").one()
-    assert stocke.password_hash == admin.password_hash
-
-
-def test_create_admin_refuse_prenom_deja_pris_meme_casse_differente(db_session, alice):
-    with pytest.raises(ValueError):
-        create_admin("alice", "motdepasse123", session=db_session)
-
-
-def test_create_admin_refuse_doublon_entre_deux_admins(db_session):
-    create_admin("Admin", "motdepasse123", session=db_session)
-
-    with pytest.raises(ValueError):
-        create_admin("Admin", "autremotdepasse", session=db_session)
-
-
-def test_create_admin_refuse_mot_de_passe_trop_court(db_session):
-    with pytest.raises(ValueError):
-        create_admin("Admin", "court1", session=db_session)
-
-
-def test_create_admin_refuse_prenom_vide(db_session):
-    with pytest.raises(ValueError):
-        create_admin("   ", "motdepasse123", session=db_session)
 
 
 def test_cli_create_admin_flux_interactif(monkeypatch, capsys):
@@ -59,3 +19,20 @@ def test_cli_create_admin_flux_interactif(monkeypatch, capsys):
     with Session(engine) as verif:
         admin = verif.query(User).filter_by(first_name="Admin").one()
         assert admin.role == "admin"
+
+
+def test_cli_create_admin_refuse_confirmation_differente(monkeypatch, capsys, db_session):
+    monkeypatch.setattr("app.cli.SessionLocal", lambda: db_session)
+    monkeypatch.setattr("builtins.input", lambda _: "Admin")
+    mots_de_passe = iter(["motdepasse123", "autre-mot-de-passe"])
+    monkeypatch.setattr("app.cli.getpass", lambda _: next(mots_de_passe))
+
+    try:
+        main(["create-admin"])
+    except SystemExit as exc:
+        assert exc.code == 1
+    else:
+        raise AssertionError("SystemExit attendu")
+
+    assert "ne correspondent pas" in capsys.readouterr().err
+    assert db_session.query(User).count() == 0
