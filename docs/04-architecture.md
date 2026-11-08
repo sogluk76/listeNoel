@@ -7,7 +7,7 @@
 | Langage | Python 3.12+ |
 | Gestion du projet | `uv` |
 | Web | FastAPI |
-| Rendu | Jinja2 (rendu serveur) + HTMX (interactions partielles, polling des commentaires) |
+| Rendu | Jinja2 (rendu serveur) + HTMX (interactions partielles, polling des commentaires), **vendorisé** dans `app/static/js/` (pas de CDN) |
 | Base de données | SQLite + SQLAlchemy 2 (ORM) + Alembic (migrations) |
 | Mots de passe | Argon2 (`argon2-cffi`) |
 | Sessions | Cookie signé (`itsdangerous` / `SessionMiddleware`) |
@@ -30,7 +30,7 @@ liste-noel/
 │   ├── config.py            # settings (pydantic-settings, variables d'env)
 │   ├── db.py                # engine, session, PRAGMA foreign_keys
 │   ├── models.py            # modèles SQLAlchemy
-│   ├── security.py          # hachage, session, dépendances current_member / current_admin
+│   ├── security.py          # hachage, jeton CSRF, dépendances current_member / current_admin
 │   ├── services/            # règles métier, sans HTTP
 │   │   ├── visibility.py    # ⚠️ matrice RG-30 : seul endroit qui décide de ce qui est visible
 │   │   ├── gifts.py
@@ -46,7 +46,7 @@ liste-noel/
 │   │   ├── profile.py       # /profil
 │   │   └── admin.py         # /admin/...
 │   ├── templates/
-│   ├── static/
+│   ├── static/js/htmx.min.js  # HTMX vendorisé
 │   └── cli.py               # create-admin
 ├── migrations/              # Alembic
 ├── media/                   # images envoyées (hors git, volume persistant en prod)

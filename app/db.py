@@ -4,6 +4,7 @@ from pathlib import Path
 from sqlalchemy import create_engine, event
 from sqlalchemy.engine import Engine
 from sqlalchemy.orm import Session, sessionmaker
+from sqlalchemy.pool import StaticPool
 
 from app.config import settings
 
@@ -16,7 +17,11 @@ def database_url(database_path: Path) -> str:
 
 
 def create_db_engine(database_url: str) -> Engine:
-    engine = create_engine(database_url, connect_args={"check_same_thread": False})
+    # SQLite :memory: perd son état à chaque nouvelle connexion : avec FastAPI, les
+    # dépendances synchrones s'exécutent dans un thread à part, donc sans StaticPool
+    # (une seule connexion partagée) chaque requête verrait une base vide.
+    extra_kwargs = {"poolclass": StaticPool} if database_url == "sqlite:///:memory:" else {}
+    engine = create_engine(database_url, connect_args={"check_same_thread": False}, **extra_kwargs)
 
     @event.listens_for(engine, "connect")
     def _enable_foreign_keys(dbapi_connection, _connection_record):

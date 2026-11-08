@@ -7,17 +7,17 @@ L'ordre des lots est pensé pour avoir un site utilisable au plus tôt. Chaque u
 ## Lot 0 — Socle technique
 | | Tâche |
 |---|---|
-| ⬜ | Projet `uv`, FastAPI, structure de dossiers, ruff, pytest |
-| ⬜ | Config (`pydantic-settings`), base SQLite, `PRAGMA foreign_keys` |
-| ⬜ | Modèles SQLAlchemy + première migration Alembic (cf. 03-modele-donnees) |
-| ⬜ | Fixtures de test : base en mémoire, membres Alice/Bob/Chloé, un admin |
-| ⬜ | Layout Jinja2 de base + HTMX + protection CSRF |
-| ⬜ | Commande `create-admin` |
+| ✅ | Projet `uv`, FastAPI, structure de dossiers, ruff, pytest |
+| ✅ | Config (`pydantic-settings`), base SQLite, `PRAGMA foreign_keys` |
+| ✅ | Modèles SQLAlchemy + première migration Alembic (cf. 03-modele-donnees) |
+| ✅ | Fixtures de test : base en mémoire, membres Alice/Bob/Chloé, un admin |
+| ✅ | Layout Jinja2 de base + HTMX + protection CSRF |
+| ✅ | Commande `create-admin` |
 
 ## Lot 1 — Authentification et administration des comptes
 | | US | Titre |
 |---|---|---|
-| ⬜ | US-04 | Se connecter en tant qu'admin |
+| 🟨 | US-04 | Se connecter en tant qu'admin |
 | ⬜ | US-05 | Créer un compte membre |
 | ⬜ | US-06 | Modifier ou désactiver un compte |
 | ⬜ | US-07 | Réinitialiser un mot de passe / débloquer un compte |
