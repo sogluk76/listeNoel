@@ -1,15 +1,22 @@
+from datetime import UTC, datetime, timedelta
+
 import pytest
 
 from app.config import settings
 from app.models import User
 from app.security import verify_password
 from app.services.users import (
+    GENERIC_AUTH_ERROR_MESSAGE,
+    LOCKED_AUTH_ERROR_MESSAGE,
+    MAX_FAILED_ATTEMPTS,
     AuthenticationError,
     MemberNotFoundError,
     authenticate,
     create_admin,
     create_member,
     list_members,
+    reset_password,
+    unlock_member,
     update_member,
 )
 
@@ -70,6 +77,73 @@ def test_authenticate_message_generique_identique_dans_tous_les_cas(db_session, 
             messages.add(str(exc))
 
     assert len(messages) == 1
+
+
+def test_authenticate_bloque_apres_5_echecs_consecutifs(db_session, alice):
+    for _ in range(MAX_FAILED_ATTEMPTS):
+        with pytest.raises(AuthenticationError):
+            authenticate(db_session, "Alice", "mauvais-mot-de-passe", role="member")
+
+    with pytest.raises(AuthenticationError) as exc_info:
+        authenticate(db_session, "Alice", "password123", role="member")
+    assert str(exc_info.value) == LOCKED_AUTH_ERROR_MESSAGE
+
+
+def test_authenticate_message_de_blocage_distinct_du_message_generique(db_session, alice):
+    for _ in range(MAX_FAILED_ATTEMPTS):
+        with pytest.raises(AuthenticationError):
+            authenticate(db_session, "Alice", "mauvais-mot-de-passe", role="member")
+
+    with pytest.raises(AuthenticationError) as exc_info:
+        authenticate(db_session, "Alice", "mauvais-mot-de-passe", role="member")
+    assert str(exc_info.value) != GENERIC_AUTH_ERROR_MESSAGE
+
+
+def test_authenticate_4_echecs_puis_succes_remet_le_compteur_a_zero(db_session, alice):
+    for _ in range(MAX_FAILED_ATTEMPTS - 1):
+        with pytest.raises(AuthenticationError):
+            authenticate(db_session, "Alice", "mauvais-mot-de-passe", role="member")
+
+    user = authenticate(db_session, "Alice", "password123", role="member")
+
+    assert user.failed_login_count == 0
+    assert user.locked_until is None
+
+
+def test_authenticate_accepte_apres_expiration_du_blocage(db_session, alice):
+    alice.failed_login_count = MAX_FAILED_ATTEMPTS
+    alice.locked_until = datetime.now(UTC).replace(tzinfo=None) - timedelta(seconds=1)
+    db_session.commit()
+
+    user = authenticate(db_session, "Alice", "password123", role="member")
+
+    assert user.id == alice.id
+    assert user.failed_login_count == 0
+    assert user.locked_until is None
+
+
+def test_authenticate_blocage_dun_compte_naffecte_pas_un_autre(db_session, alice, bob):
+    for _ in range(MAX_FAILED_ATTEMPTS):
+        with pytest.raises(AuthenticationError):
+            authenticate(db_session, "Alice", "mauvais-mot-de-passe", role="member")
+
+    user = authenticate(db_session, "Bob", "password123", role="member")
+
+    assert user.id == bob.id
+
+
+def test_deblocage_direct_permet_une_connexion_immediate(db_session, alice):
+    """Ce que fera US-07 : remettre le compteur et `locked_until` à zéro débloque le compte."""
+    alice.failed_login_count = MAX_FAILED_ATTEMPTS
+    alice.locked_until = datetime.now(UTC).replace(tzinfo=None) + timedelta(minutes=15)
+    db_session.commit()
+
+    alice.failed_login_count = 0
+    alice.locked_until = None
+    db_session.commit()
+
+    user = authenticate(db_session, "Alice", "password123", role="member")
+    assert user.id == alice.id
 
 
 def test_create_admin_cree_un_compte_role_admin(db_session):
@@ -233,3 +307,77 @@ def test_update_member_supprime_la_photo_sans_la_remplacer(db_session, alice, ma
 def test_update_member_refuse_fichier_non_image(db_session, alice):
     with pytest.raises(ValueError):
         update_member(db_session, alice.id, "Alice", is_active=True, photo=b"pas une image")
+
+
+def test_reset_password_remplace_lancien_mot_de_passe(db_session, alice):
+    reset_password(db_session, alice.id, "nouveaumdp123", "nouveaumdp123")
+
+    assert not verify_password("password123", alice.password_hash)
+    assert verify_password("nouveaumdp123", alice.password_hash)
+
+
+def test_reset_password_refuse_confirmation_differente(db_session, alice):
+    with pytest.raises(ValueError):
+        reset_password(db_session, alice.id, "nouveaumdp123", "autre-mdp")
+
+
+def test_reset_password_refuse_mot_de_passe_trop_court(db_session, alice):
+    with pytest.raises(ValueError):
+        reset_password(db_session, alice.id, "court1", "court1")
+
+
+def test_reset_password_leve_le_blocage(db_session, alice):
+    alice.failed_login_count = MAX_FAILED_ATTEMPTS
+    alice.locked_until = datetime.now(UTC).replace(tzinfo=None) + timedelta(minutes=15)
+    db_session.commit()
+
+    reset_password(db_session, alice.id, "nouveaumdp123", "nouveaumdp123")
+
+    assert alice.failed_login_count == 0
+    assert alice.locked_until is None
+    user = authenticate(db_session, "Alice", "nouveaumdp123", role="member")
+    assert user.id == alice.id
+
+
+def test_reset_password_refuse_sur_id_admin(db_session, admin):
+    with pytest.raises(MemberNotFoundError):
+        reset_password(db_session, admin.id, "nouveaumdp123", "nouveaumdp123")
+
+
+def test_reset_password_refuse_sur_id_inconnu(db_session):
+    with pytest.raises(MemberNotFoundError):
+        reset_password(db_session, 9999, "nouveaumdp123", "nouveaumdp123")
+
+
+def test_unlock_member_remet_le_compteur_et_le_blocage_a_zero(db_session, alice):
+    alice.failed_login_count = MAX_FAILED_ATTEMPTS
+    alice.locked_until = datetime.now(UTC).replace(tzinfo=None) + timedelta(minutes=15)
+    db_session.commit()
+
+    unlock_member(db_session, alice.id)
+
+    assert alice.failed_login_count == 0
+    assert alice.locked_until is None
+
+
+def test_unlock_member_permet_une_connexion_immediate(db_session, alice):
+    alice.failed_login_count = MAX_FAILED_ATTEMPTS
+    alice.locked_until = datetime.now(UTC).replace(tzinfo=None) + timedelta(minutes=15)
+    db_session.commit()
+
+    unlock_member(db_session, alice.id)
+
+    user = authenticate(db_session, "Alice", "password123", role="member")
+    assert user.id == alice.id
+
+
+def test_unlock_member_sans_effet_si_compte_non_bloque(db_session, alice):
+    membre = unlock_member(db_session, alice.id)
+
+    assert membre.failed_login_count == 0
+    assert membre.locked_until is None
+
+
+def test_unlock_member_refuse_sur_id_admin(db_session, admin):
+    with pytest.raises(MemberNotFoundError):
+        unlock_member(db_session, admin.id)

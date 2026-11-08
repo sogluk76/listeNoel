@@ -11,6 +11,8 @@ from app.services.users import (
     create_member,
     get_member,
     list_members,
+    reset_password,
+    unlock_member,
     update_member,
 )
 from app.templating import templates
@@ -108,7 +110,7 @@ def liste_membres(request: Request, db: Session = Depends(get_db), admin=Depends
 def modifier_membre_form(
     member_id: int,
     request: Request,
-    succes: bool = False,
+    succes: str | None = None,
     db: Session = Depends(get_db),
     _admin=Depends(current_admin),
 ):
@@ -122,7 +124,8 @@ def modifier_membre_form(
         {
             "csrf_token": get_csrf_token(request),
             "membre": membre,
-            "erreur": None,
+            "erreur_profil": None,
+            "erreur_mot_de_passe": None,
             "succes": succes,
         },
     )
@@ -153,16 +156,62 @@ async def modifier_membre(
     except MemberNotFoundError as exc:
         raise HTTPException(status_code=404) from exc
     except ValueError as exc:
-        membre_actuel = get_member(db, member_id)
         return templates.TemplateResponse(
             request,
             "admin/modifier_membre.html",
             {
                 "csrf_token": get_csrf_token(request),
-                "membre": membre_actuel,
-                "erreur": str(exc),
-                "succes": False,
+                "membre": get_member(db, member_id),
+                "erreur_profil": str(exc),
+                "erreur_mot_de_passe": None,
+                "succes": None,
             },
             status_code=400,
         )
-    return RedirectResponse(f"/admin/membres/{membre.id}/modifier?succes=1", status_code=303)
+    return RedirectResponse(f"/admin/membres/{membre.id}/modifier?succes=profil", status_code=303)
+
+
+@router.post("/membres/{member_id}/mot-de-passe", dependencies=[Depends(verify_csrf)])
+def reinitialiser_mot_de_passe(
+    member_id: int,
+    request: Request,
+    password: str = Form(...),
+    password_confirmation: str = Form(...),
+    db: Session = Depends(get_db),
+    _admin=Depends(current_admin),
+):
+    try:
+        reset_password(db, member_id, password, password_confirmation)
+    except MemberNotFoundError as exc:
+        raise HTTPException(status_code=404) from exc
+    except ValueError as exc:
+        return templates.TemplateResponse(
+            request,
+            "admin/modifier_membre.html",
+            {
+                "csrf_token": get_csrf_token(request),
+                "membre": get_member(db, member_id),
+                "erreur_profil": None,
+                "erreur_mot_de_passe": str(exc),
+                "succes": None,
+            },
+            status_code=400,
+        )
+    return RedirectResponse(
+        f"/admin/membres/{member_id}/modifier?succes=mot_de_passe", status_code=303
+    )
+
+
+@router.post("/membres/{member_id}/debloquer", dependencies=[Depends(verify_csrf)])
+def debloquer_membre(
+    member_id: int,
+    db: Session = Depends(get_db),
+    _admin=Depends(current_admin),
+):
+    try:
+        unlock_member(db, member_id)
+    except MemberNotFoundError as exc:
+        raise HTTPException(status_code=404) from exc
+    return RedirectResponse(
+        f"/admin/membres/{member_id}/modifier?succes=deblocage", status_code=303
+    )

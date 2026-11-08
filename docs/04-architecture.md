@@ -12,6 +12,7 @@
 | Mots de passe | Argon2 (`argon2-cffi`) |
 | Sessions | Cookie signé (`itsdangerous` / `SessionMiddleware`) |
 | Images | Pillow (vérification du format, redimensionnement) |
+| Dates | `zoneinfo` + `tzdata` (fuseau Europe/Paris, filtre Jinja `date_fr`, format `07/12/2025 17:00`) |
 | Tests | pytest + `httpx` (`TestClient`) |
 | Qualité | ruff (lint + format) |
 | Déploiement | Docker + PaaS (Render, Railway ou Fly.io, cf. points ouverts) |
@@ -70,7 +71,7 @@ liste-noel/
 - Cookie de session `HttpOnly`, `SameSite=Lax`, `Secure` en production, durée 30 jours.
 - Protection CSRF sur tous les formulaires POST (jeton en session + champ caché / en-tête HTMX).
 - Blocage après 5 échecs (RG-05).
-- Upload : type vérifié par Pillow (pas seulement par l'extension), taille plafonnée, nom de fichier généré (UUID), servi depuis `media/`.
+- Upload : type vérifié par Pillow (pas seulement par l'extension), taille plafonnée, nom de fichier généré (UUID), servi depuis `media/` via une route dédiée (`GET /media/{filename}`, garde-fou anti path-traversal) plutôt qu'un montage `StaticFiles` figé au démarrage (incompatible avec l'isolation de `media_dir` dans les tests). Route publique, sans authentification : seules les photos de profil y passent, non couvertes par la matrice RG-30 (RG-04 les affiche dès l'écran de connexion).
 - Liens cadeaux : schéma `http`/`https` uniquement, `rel="noopener noreferrer"`.
 - Échappement automatique Jinja2 activé (commentaires, noms de cadeaux).
 - Secrets (`SECRET_KEY`, chemin de la BDD) en variables d'environnement, fichier `.env` hors git.

@@ -1,3 +1,5 @@
+from datetime import UTC, datetime, timedelta
+
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
@@ -6,7 +8,10 @@ from app.security import hash_password, verify_password
 from app.services.images import InvalidImageError, delete_profile_photo, save_profile_photo
 
 GENERIC_AUTH_ERROR_MESSAGE = "Mot de passe incorrect"  # RG-06 : jamais plus précis
+LOCKED_AUTH_ERROR_MESSAGE = "Compte temporairement bloqué, réessaie plus tard"  # RG-06
 MIN_PASSWORD_LENGTH = 8  # RG-10 / PO-09
+MAX_FAILED_ATTEMPTS = 5  # RG-05
+LOCKOUT_DURATION = timedelta(minutes=15)  # RG-05 / PO-01
 
 
 class AuthenticationError(Exception):
@@ -17,15 +22,43 @@ class MemberNotFoundError(Exception):
     pass
 
 
+def _now() -> datetime:
+    """Naïf, UTC : même convention que `created_at`/`updated_at` (horodatage SQLite)."""
+    return datetime.now(UTC).replace(tzinfo=None)
+
+
 def authenticate(db: Session, first_name: str, password: str, role: str) -> User:
-    """Authentifie un utilisateur d'un rôle donné. Lève `AuthenticationError` sinon (RG-06)."""
+    """Authentifie un utilisateur d'un rôle donné (RG-05, RG-06).
+
+    Lève `AuthenticationError` avec le message générique si le prénom, le rôle ou le mot de
+    passe est incorrect ou le compte désactivé, ou avec le message de blocage si le compte est
+    bloqué (RG-05) — même avec le bon mot de passe.
+    """
     user = (
         db.query(User)
         .filter(func.lower(User.first_name) == first_name.strip().lower(), User.role == role)
         .first()
     )
-    if user is None or not user.is_active or not verify_password(password, user.password_hash):
+    if user is None or not user.is_active:
         raise AuthenticationError(GENERIC_AUTH_ERROR_MESSAGE)
+
+    now = _now()
+    if user.locked_until is not None:
+        if user.locked_until > now:
+            raise AuthenticationError(LOCKED_AUTH_ERROR_MESSAGE)
+        user.failed_login_count = 0
+        user.locked_until = None
+
+    if not verify_password(password, user.password_hash):
+        user.failed_login_count += 1
+        if user.failed_login_count >= MAX_FAILED_ATTEMPTS:
+            user.locked_until = now + LOCKOUT_DURATION
+        db.commit()
+        raise AuthenticationError(GENERIC_AUTH_ERROR_MESSAGE)
+
+    user.failed_login_count = 0
+    user.locked_until = None
+    db.commit()
     return user
 
 
@@ -90,12 +123,57 @@ def list_members(db: Session) -> list[User]:
     return db.query(User).filter(User.role == "member").order_by(func.lower(User.first_name)).all()
 
 
+def list_active_members(db: Session) -> list[User]:
+    """Membres actifs, triés alphabétiquement (RG-03, US-01). L'admin n'y figure jamais."""
+    return (
+        db.query(User)
+        .filter(User.role == "member", User.is_active.is_(True))
+        .order_by(func.lower(User.first_name))
+        .all()
+    )
+
+
 def get_member(db: Session, member_id: int) -> User:
     """Un compte membre par id. Lève `MemberNotFoundError` sinon (jamais l'admin)."""
     user = db.query(User).filter(User.id == member_id, User.role == "member").first()
     if user is None:
         raise MemberNotFoundError
     return user
+
+
+def _clear_lockout(member: User) -> None:
+    member.failed_login_count = 0
+    member.locked_until = None
+
+
+def reset_password(db: Session, member_id: int, password: str, password_confirmation: str) -> User:
+    """Définit un nouveau mot de passe pour un membre et lève son blocage (US-07, RG-05, RG-10).
+
+    Lève `MemberNotFoundError` si `member_id` ne désigne pas un compte membre, `ValueError`
+    si la confirmation ne correspond pas ou si le mot de passe est trop court.
+    """
+    member = get_member(db, member_id)
+    if password != password_confirmation:
+        raise ValueError("Les mots de passe ne correspondent pas.")
+    if len(password) < MIN_PASSWORD_LENGTH:
+        msg = f"Le mot de passe doit contenir au moins {MIN_PASSWORD_LENGTH} caractères."
+        raise ValueError(msg)
+
+    member.password_hash = hash_password(password)
+    _clear_lockout(member)
+    db.commit()
+    return member
+
+
+def unlock_member(db: Session, member_id: int) -> User:
+    """Lève le blocage RG-05 d'un membre, sans effet s'il n'était pas bloqué (US-07).
+
+    Lève `MemberNotFoundError` si `member_id` ne désigne pas un compte membre.
+    """
+    member = get_member(db, member_id)
+    _clear_lockout(member)
+    db.commit()
+    return member
 
 
 def update_member(

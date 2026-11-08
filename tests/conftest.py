@@ -2,6 +2,7 @@ import io
 import json
 import re
 from base64 import b64encode
+from datetime import UTC, datetime
 
 import itsdangerous
 import pytest
@@ -12,7 +13,7 @@ from sqlalchemy.orm import Session
 from app.config import settings
 from app.db import create_db_engine, get_db
 from app.main import app
-from app.models import Base, User
+from app.models import Base, Gift, User
 from app.security import hash_password
 
 FIXTURE_PASSWORD = "password123"
@@ -51,7 +52,9 @@ def login_as():
     def _login_as(test_client: TestClient, user: User) -> None:
         signer = itsdangerous.TimestampSigner(settings.secret_key)
         payload = b64encode(json.dumps({"user_id": user.id}).encode("utf-8"))
-        test_client.cookies.set("session", signer.sign(payload).decode("utf-8"))
+        test_client.cookies.set(
+            "session", signer.sign(payload).decode("utf-8"), domain="testserver.local"
+        )
 
     return _login_as
 
@@ -106,3 +109,32 @@ def admin(db_session):
     db_session.add(user)
     db_session.commit()
     return user
+
+
+@pytest.fixture
+def create_gift(db_session):
+    """Factory de cadeau pour les tests : `create_gift(auteur)` (perso) ou
+    `create_gift(auteur, recipient=quelquun)` (suggestion)."""
+
+    def _create(
+        author,
+        recipient=None,
+        *,
+        name="Cadeau",
+        removed=False,
+        archived_year=None,
+        purchased_by=None,
+    ):
+        gift = Gift(
+            name=name,
+            recipient_id=(recipient or author).id,
+            author_id=author.id,
+            removed_at=datetime.now(UTC).replace(tzinfo=None) if removed else None,
+            archived_year=archived_year,
+            purchased_by_id=purchased_by.id if purchased_by else None,
+        )
+        db_session.add(gift)
+        db_session.commit()
+        return gift
+
+    return _create

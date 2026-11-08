@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import UTC, datetime
 from zoneinfo import ZoneInfo
 
 from fastapi.templating import Jinja2Templates
@@ -16,3 +16,13 @@ def format_datetime_fr(value: datetime) -> str:
 
 
 templates.env.filters["date_fr"] = format_datetime_fr
+
+
+def est_bloque(membre) -> bool:
+    """RG-05 : un compte n'est bloqué que si `locked_until` est dans le futur (sinon le
+    prochain essai de connexion le lèvera de lui-même, cf. `authenticate()`)."""
+    locked_until = membre.locked_until
+    return locked_until is not None and locked_until > datetime.now(UTC).replace(tzinfo=None)
+
+
+templates.env.filters["est_bloque"] = est_bloque

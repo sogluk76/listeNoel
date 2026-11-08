@@ -19,16 +19,16 @@ L'ordre des lots est pensé pour avoir un site utilisable au plus tôt. Chaque u
 |---|---|---|
 | ✅ | US-04 | Se connecter en tant qu'admin |
 | ✅ | US-05 | Créer un compte membre |
-| 🟨 | US-06 | Modifier ou désactiver un compte |
-| ⬜ | US-07 | Réinitialiser un mot de passe / débloquer un compte |
-| ⬜ | US-01 | Se connecter en tant que membre |
-| ⬜ | US-03 | Blocage après 5 échecs |
-| ⬜ | US-02 | Se déconnecter |
+| ✅ | US-06 | Modifier ou désactiver un compte |
+| ✅ | US-03 | Blocage après 5 échecs |
+| ✅ | US-07 | Réinitialiser un mot de passe / débloquer un compte |
+| ✅ | US-01 | Se connecter en tant que membre |
+| ✅ | US-02 | Se déconnecter |
 
 ## Lot 2 — Listes de cadeaux (cœur de l'appli)
 | | US | Titre |
 |---|---|---|
-| ⬜ | US-10 | Consulter la liste des personnes |
+| ✅ | US-10 | Consulter la liste des personnes |
 | ⬜ | US-11 | Ajouter un cadeau à ma liste |
 | ⬜ | US-13 | Consulter la liste de cadeaux d'une personne |
 | ⬜ | US-12 | Suggérer un cadeau pour quelqu'un |

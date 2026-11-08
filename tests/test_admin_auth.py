@@ -49,6 +49,23 @@ def test_membre_ne_peut_pas_se_connecter_via_admin_login(client, alice, extract_
     assert "location" not in response.headers
 
 
+def test_admin_bloque_apres_5_echecs_via_le_formulaire(client, admin, extract_csrf_token):
+    page = client.get("/admin/login")
+    token = extract_csrf_token(page.text)
+    data = {"first_name": "Admin", "password": "mauvais-mot-de-passe", "csrf_token": token}
+
+    for _ in range(5):
+        client.post("/admin/login", data=data)
+
+    response = client.post(
+        "/admin/login",
+        data={"first_name": "Admin", "password": "password123", "csrf_token": token},
+    )
+
+    assert response.status_code == 400
+    assert "bloqué" in response.text
+
+
 def test_admin_sans_session_redirige_vers_admin_login(client):
     response = client.get("/admin", follow_redirects=False)
 

@@ -1,9 +1,13 @@
+from datetime import UTC, datetime, timedelta
+
+import pytest
 from fastapi.testclient import TestClient
 
 from app.config import settings
 from app.main import app
 from app.models import User
 from app.security import verify_password
+from app.services.users import MAX_FAILED_ATTEMPTS, AuthenticationError, authenticate
 
 
 def _creer_membre(client, extract_csrf_token, photo=None, **champs):
@@ -42,6 +46,31 @@ def _modifier_membre(
         f"/admin/membres/{member_id}/modifier",
         data=data,
         files=files,
+        follow_redirects=follow_redirects,
+    )
+
+
+def _reinitialiser_mot_de_passe(
+    client, extract_csrf_token, member_id, password, confirmation=None, follow_redirects=False
+):
+    page = client.get(f"/admin/membres/{member_id}/modifier")
+    token = extract_csrf_token(page.text)
+    data = {
+        "password": password,
+        "password_confirmation": confirmation if confirmation is not None else password,
+        "csrf_token": token,
+    }
+    return client.post(
+        f"/admin/membres/{member_id}/mot-de-passe", data=data, follow_redirects=follow_redirects
+    )
+
+
+def _debloquer(client, extract_csrf_token, member_id, follow_redirects=False):
+    page = client.get(f"/admin/membres/{member_id}/modifier")
+    token = extract_csrf_token(page.text)
+    return client.post(
+        f"/admin/membres/{member_id}/debloquer",
+        data={"csrf_token": token},
         follow_redirects=follow_redirects,
     )
 
@@ -314,3 +343,116 @@ def test_modifier_supprime_la_photo_via_case_a_cocher(
     membre = db_session.get(User, alice.id)
     db_session.refresh(membre)
     assert membre.photo_path is None
+
+
+def test_reinitialiser_mot_de_passe_change_le_mot_de_passe(
+    client, admin, alice, login_as, db_session, extract_csrf_token
+):
+    login_as(client, admin)
+
+    response = _reinitialiser_mot_de_passe(client, extract_csrf_token, alice.id, "nouveaumdp123")
+
+    assert response.status_code == 303
+    with pytest.raises(AuthenticationError):
+        authenticate(db_session, "Alice", "password123", role="member")
+    user = authenticate(db_session, "Alice", "nouveaumdp123", role="member")
+    assert user.id == alice.id
+
+
+def test_reinitialiser_mot_de_passe_refuse_confirmation_differente(
+    client, admin, alice, login_as, extract_csrf_token
+):
+    login_as(client, admin)
+
+    response = _reinitialiser_mot_de_passe(
+        client, extract_csrf_token, alice.id, "nouveaumdp123", confirmation="autre-mdp"
+    )
+
+    assert response.status_code == 400
+    assert "ne correspondent pas" in response.text
+
+
+def test_reinitialiser_mot_de_passe_refuse_trop_court(
+    client, admin, alice, login_as, extract_csrf_token
+):
+    login_as(client, admin)
+
+    response = _reinitialiser_mot_de_passe(client, extract_csrf_token, alice.id, "court1")
+
+    assert response.status_code == 400
+    assert "8 caractères" in response.text
+
+
+def test_reinitialiser_mot_de_passe_leve_le_blocage(
+    client, admin, alice, login_as, db_session, extract_csrf_token
+):
+    alice.failed_login_count = MAX_FAILED_ATTEMPTS
+    alice.locked_until = datetime.now(UTC).replace(tzinfo=None) + timedelta(minutes=15)
+    db_session.commit()
+    login_as(client, admin)
+
+    _reinitialiser_mot_de_passe(client, extract_csrf_token, alice.id, "nouveaumdp123")
+
+    user = authenticate(db_session, "Alice", "nouveaumdp123", role="member")
+    assert user.id == alice.id
+
+
+def test_reinitialiser_mot_de_passe_refuse_sur_id_admin(
+    client, admin, login_as, extract_csrf_token
+):
+    login_as(client, admin)
+    token = extract_csrf_token(client.get("/admin/membres").text)
+
+    response = client.post(
+        f"/admin/membres/{admin.id}/mot-de-passe",
+        data={
+            "password": "nouveaumdp123",
+            "password_confirmation": "nouveaumdp123",
+            "csrf_token": token,
+        },
+    )
+
+    assert response.status_code == 404
+
+
+def test_bouton_debloquer_absent_si_compte_non_bloque(client, admin, alice, login_as):
+    login_as(client, admin)
+
+    response = client.get(f"/admin/membres/{alice.id}/modifier")
+
+    assert "Débloquer" not in response.text
+
+
+def test_bouton_debloquer_visible_si_compte_bloque(client, admin, alice, login_as, db_session):
+    alice.failed_login_count = MAX_FAILED_ATTEMPTS
+    alice.locked_until = datetime.now(UTC).replace(tzinfo=None) + timedelta(minutes=15)
+    db_session.commit()
+    login_as(client, admin)
+
+    response = client.get(f"/admin/membres/{alice.id}/modifier")
+
+    assert "Débloquer" in response.text
+
+
+def test_debloquer_remet_le_compteur_et_permet_une_connexion_immediate(
+    client, admin, alice, login_as, db_session, extract_csrf_token
+):
+    alice.failed_login_count = MAX_FAILED_ATTEMPTS
+    alice.locked_until = datetime.now(UTC).replace(tzinfo=None) + timedelta(minutes=15)
+    db_session.commit()
+    login_as(client, admin)
+
+    response = _debloquer(client, extract_csrf_token, alice.id)
+
+    assert response.status_code == 303
+    user = authenticate(db_session, "Alice", "password123", role="member")
+    assert user.id == alice.id
+
+
+def test_debloquer_refuse_sur_id_admin(client, admin, login_as, extract_csrf_token):
+    login_as(client, admin)
+    token = extract_csrf_token(client.get("/admin/membres").text)
+
+    response = client.post(f"/admin/membres/{admin.id}/debloquer", data={"csrf_token": token})
+
+    assert response.status_code == 404

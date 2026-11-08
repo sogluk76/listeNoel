@@ -28,7 +28,7 @@
             <td>{{ membre.first_name }}</td>
             <td>
                 {% if not membre.is_active %}Désactivé
-                {% elif membre.locked_until %}Bloqué
+                {% elif membre|est_bloque %}Bloqué
                 {% else %}Actif
                 {% endif %}
             </td>

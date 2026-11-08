@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+
+{% block title %}Ajouter un cadeau{% endblock %}
+
+{% block content %}
+<h2>Ajouter un cadeau</h2>
+{% if erreur %}
+<p role="alert">{{ erreur }}</p>
+{% endif %}
+<form method="post" action="/cadeaux/nouveau" enctype="multipart/form-data">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+
+    <label for="name">Cadeau</label>
+    <input type="text" id="name" name="name" maxlength="150" required>
+
+    <label for="price">Prix (€)</label>
+    <input type="text" id="price" name="price">
+
+    <label for="url">Lien</label>
+    <input type="url" id="url" name="url">
+
+    <label for="image">Image</label>
+    <input type="file" id="image" name="image" accept="image/jpeg,image/png,image/webp">
+
+    <p>Pour qui ? <strong>Moi</strong></p>
+
+    <button type="submit">Ajouter</button>
+    <a href="/">Annuler</a>
+</form>
+{% endblock %}

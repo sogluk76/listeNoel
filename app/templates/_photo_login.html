@@ -1,0 +1,7 @@
+{% if membre and membre.photo_path %}
+<img src="/media/{{ membre.photo_path }}" alt="" width="80" height="80">
+{% elif membre %}
+<span class="photo-placeholder">{{ membre.first_name[0] }}</span>
+{% else %}
+<span class="photo-placeholder"></span>
+{% endif %}

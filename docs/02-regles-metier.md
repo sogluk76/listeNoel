@@ -21,7 +21,7 @@ Chaque règle a un identifiant `RG-xx` cité dans les user stories et dans les t
 - **RG-02** Les prénoms des membres sont uniques (ils servent d'identifiant de connexion).
 - **RG-03** L'écran de connexion membre propose la liste déroulante des membres **actifs**, triée par ordre alphabétique. L'admin n'y apparaît jamais.
 - **RG-04** Quand un prénom est choisi, sa photo de profil s'affiche, ou un placeholder (initiales) s'il n'en a pas.
-- **RG-05** Après **5 échecs consécutifs**, le compte est bloqué **15 minutes** (durée à confirmer, cf. points ouverts). Un succès remet le compteur à zéro. L'admin peut débloquer un compte.
+- **RG-05** Après **5 échecs consécutifs**, le compte est bloqué **15 minutes** (PO-01). Un succès remet le compteur à zéro. L'admin peut débloquer un compte.
 - **RG-06** Le message d'erreur reste générique : « Mot de passe incorrect ». En cas de blocage : « Compte temporairement bloqué, réessaie plus tard ».
 - **RG-07** La session dure **30 jours**. Un bouton de déconnexion est disponible depuis le profil.
 - **RG-08** L'admin se connecte sur une page séparée `/admin/login`, avec identifiant + mot de passe.
@@ -32,7 +32,7 @@ Chaque règle a un identifiant `RG-xx` cité dans les user stories et dans les t
 ## Liste des personnes
 
 - **RG-12** La liste affiche tous les membres actifs, **moi compris**, par ordre alphabétique.
-- **RG-13** Le compteur affiché à côté de chaque prénom est le **nombre de cadeaux visibles par le viewer** sur la liste de cette personne (cf. matrice RG-30), hors cadeaux retirés et archivés.
+- **RG-13** Le compteur affiché à côté de chaque prénom est le **nombre de cadeaux visibles par le viewer** sur la liste de cette personne (cf. matrice RG-30), hors cadeaux retirés et archivés. Un cadeau acheté reste compté (PO-06).
 
 ## Cadeaux
 
@@ -43,10 +43,10 @@ Chaque règle a un identifiant `RG-xx` cité dans les user stories et dans les t
 - **RG-18** Par défaut (« Suggérer pour quelqu'un d'autre » = Non), le destinataire est le membre connecté et le champ « Pour qui ? » n'est pas modifiable.
 - **RG-19** Si « Suggérer » = Oui, le champ « Pour qui ? » propose **les autres membres actifs uniquement** (pas moi), et le formulaire affiche « Idée de : <moi> ».
 - **RG-20** Pour les autres membres, une suggestion affiche « Suggéré par <auteur> ». Le destinataire ne voit jamais la suggestion.
-- **RG-21** Seul l'**auteur** peut modifier un cadeau. L'admin ne modifie pas les cadeaux.
+- **RG-21** Seul l'**auteur** peut modifier un cadeau. L'admin ne modifie pas les cadeaux. Un cadeau déjà acheté reste modifiable par son auteur (qui ignore l'achat, PO-05) ; les autres membres voient alors « modifié le <date> ».
 - **RG-22** Suppression par l'auteur :
   - si le cadeau n'a **ni réservation, ni achat, ni commentaire**, il est supprimé définitivement ;
-  - sinon, c'est une **suppression douce** : le cadeau disparaît de la vue de l'auteur, et les autres membres le voient marqué « Retiré par <auteur> ». Il n'est plus réservable.
+  - sinon, c'est une **suppression douce** : le cadeau disparaît de la vue de l'auteur, et les autres membres le voient marqué « Retiré par <auteur> ». Il n'est plus réservable, mais les commentaires restent en lecture et en écriture (PO-04).
 - **RG-23** L'admin peut supprimer **définitivement** n'importe quel cadeau depuis le panel, avec ses réservations et commentaires, après confirmation. Le panel affiche le nom, le destinataire, l'auteur et la date, **jamais** les commentaires ni les réservations.
 - **RG-24** Recherche : sur le nom du cadeau, insensible à la casse et aux accents.
 - **RG-25** Tri : par nom, par prix ou par statut (pour les autres que le destinataire), croissant ou décroissant. Tri par défaut : nom croissant. Les cadeaux sans prix sont placés en fin de liste.

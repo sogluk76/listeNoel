@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+
+{% block title %}Liste des personnes{% endblock %}
+
+{% block content %}
+<h2>Liste des personnes</h2>
+<a href="/cadeaux/nouveau">+ Ajouter un cadeau</a>
+
+<ul>
+    {% for membre in membres %}
+    <li>
+        <a href="/personnes/{{ membre.id }}">
+            {% if membre.photo_path %}
+            <img src="/media/{{ membre.photo_path }}" alt="" width="40" height="40">
+            {% else %}
+            {{ membre.first_name[0] }}
+            {% endif %}
+            {{ membre.first_name }} ({{ compteurs[membre.id] }})
+        </a>
+    </li>
+    {% endfor %}
+</ul>
+
+<form method="post" action="/logout">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+    <button type="submit">Se déconnecter</button>
+</form>
+{% endblock %}

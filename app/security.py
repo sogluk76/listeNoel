@@ -61,7 +61,7 @@ class RedirectToLogin(Exception):
         self.location = location
 
 
-def _user_from_session(request: Request, db: Session) -> User | None:
+def user_from_session(request: Request, db: Session) -> User | None:
     user_id = request.session.get("user_id")
     if user_id is None:
         return None
@@ -73,7 +73,7 @@ def _user_from_session(request: Request, db: Session) -> User | None:
 
 def current_member(request: Request, db: Session = Depends(get_db)) -> User:
     """403 si connecté avec le mauvais rôle (RG-09), redirection vers /login sinon."""
-    user = _user_from_session(request, db)
+    user = user_from_session(request, db)
     if user is None:
         raise RedirectToLogin("/login")
     if user.role != "member":
@@ -83,7 +83,7 @@ def current_member(request: Request, db: Session = Depends(get_db)) -> User:
 
 def current_admin(request: Request, db: Session = Depends(get_db)) -> User:
     """403 si connecté avec le mauvais rôle (RG-09), redirection vers /admin/login sinon."""
-    user = _user_from_session(request, db)
+    user = user_from_session(request, db)
     if user is None:
         raise RedirectToLogin("/admin/login")
     if user.role != "admin":

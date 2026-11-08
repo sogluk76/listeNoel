@@ -53,3 +53,66 @@ Une entrée par incrément livré (tests verts). Format :
 - Décisions validées :
   - **PO-09** tranché : mot de passe, 8 caractères minimum, sans autre contrainte. Reporté en RG-10.
   - **PO-10** tranché : redimensionnement des images à 800 px maximum sur le plus grand côté, ratio conservé. Reporté en RG-17 (s'applique aussi aux photos de profil de US-06/US-23).
+
+## 2026-11-08 — US-06 (incréments 1 et 2) — Modifier ou désactiver un compte
+- Fait :
+  - Incrément 1 : `list_members()` (tous les comptes membres, actifs ou non, admin exclu) et `update_member()` dans `app/services/users.py` (prénom unique hors soi-même, remplacement/suppression de la photo avec nettoyage de l'ancien fichier, refuse d'opérer sur un id qui n'est pas un membre — l'admin ne peut jamais être modifié/désactivé via cette fonction, même avec un id forgé) ; `delete_profile_photo()` dans `app/services/images.py`.
+  - Incrément 2 : routes `GET /admin/membres` (liste) et `GET/POST /admin/membres/{id}/modifier`, templates associés. Ajout de `GET /media/{filename}` dans `app/main.py` : aucune route ne servait encore les photos uploadées depuis US-05, elles étaient stockées mais jamais consultables. Ajout du filtre Jinja `date_fr` (`app/templating.py`, convention `07/12/2025 17:00`, fuseau Europe/Paris) réutilisable par les prochaines stories affichant des dates.
+- Fichiers : `app/services/users.py`, `app/services/images.py`, `app/routers/admin.py`, `app/templating.py`, `app/main.py`, `app/templates/admin/{membres,modifier_membre,dashboard}.html`, `pyproject.toml` (dépendance `tzdata`, nécessaire sur Windows pour `Europe/Paris`), `tests/{test_services_users,test_services_images,test_admin_membres,test_main,test_templating}.py`.
+- Tests : 35 ajoutés, 112 verts au total.
+- Décisions validées :
+  - La liste admin affiche tous les comptes membres y compris désactivés/bloqués (contrairement à RG-12, propre à la liste membre) : l'admin doit pouvoir réactiver un compte.
+  - Route `/media/{filename}` dédiée plutôt qu'un montage `StaticFiles` classique, pour rester compatible avec l'isolation du dossier `media/` dans les tests.
+  - Deux tests du découpage initial (connexion refusée via `/login`, disparition de la liste des personnes) retirés : ces écrans relèvent de US-01/US-10/US-03, pas encore construits. RG-11 reste couvert par `test_authenticate_refuse_compte_inactif` (déjà existant) et par le test d'invalidation de session de cet incrément.
+
+## 2026-11-08 — Réordonnancement du backlog — US-03 avant US-07
+- Fait : US-07 (réinitialiser/débloquer) dépend du mécanisme de blocage RG-05, volontairement non construit en US-04 et initialement prévu pour US-03, placée après US-07 dans le backlog. Décidé avec Lukas d'intervertir l'ordre : US-03 avant US-07.
+- Décisions validées : **PO-01** tranché à cette occasion : blocage de 15 minutes. Reporté en RG-05.
+
+## 2026-11-08 — US-03 (incrément unique) — Blocage après 5 échecs
+- Fait : logique de blocage ajoutée dans `authenticate()` (`app/services/users.py`) — compteur d'échecs, blocage 15 minutes au 5ᵉ échec consécutif, message RG-06 distinct (« Compte temporairement bloqué… »), remise à zéro à l'expiration du blocage ou sur succès. Aucune nouvelle route : `authenticate()` est déjà appelée par `/admin/login`, donc le blocage s'applique immédiatement à l'admin, et s'appliquera à US-01 sans code supplémentaire.
+- Fichiers : `app/services/users.py`, `tests/test_services_users.py`, `tests/test_admin_auth.py`.
+- Tests : 7 ajoutés, 119 verts au total.
+- Décisions validées :
+  - Le critère « déblocage admin → connexion immédiate » (US-07) est démontré au niveau service (remettre `failed_login_count`/`locked_until` à zéro débloque immédiatement) : c'est exactement ce que l'action « Débloquer » de US-07 appellera.
+
+## 2026-11-08 — US-07 (incrément unique) — Réinitialiser un mot de passe / débloquer un compte
+- Fait : `reset_password()` et `unlock_member()` dans `app/services/users.py` (RG-05, RG-10) ; routes `POST /admin/membres/{id}/mot-de-passe` et `POST /admin/membres/{id}/debloquer`, ajoutées sur la fiche membre existante (US-06), pas un nouvel écran. Filtre Jinja `est_bloque` (`app/templating.py`) qui vérifie l'expiration de `locked_until`, pas seulement sa présence ; corrige au passage le statut « Bloqué » de la liste admin (US-06), qui ne tenait pas compte de l'expiration.
+- Fichiers : `app/services/users.py`, `app/routers/admin.py`, `app/templating.py`, `app/templates/admin/{modifier_membre,membres}.html`, `tests/{test_services_users,test_admin_membres}.py`.
+- Tests : 19 ajoutés, 138 verts au total.
+- Décisions validées : garde-fou id-admin (`MemberNotFoundError` → 404) appliqué aux deux nouvelles routes, même principe que US-06.
+
+## 2026-11-08 — US-01 (incréments 1 et 2) — Se connecter en tant que membre
+- Fait :
+  - Incrément 1 : `list_active_members()` dans `app/services/users.py` (RG-03) ; `app/security.py` : `_user_from_session` renommée `user_from_session` (publique, réutilisée par le router) ; router `app/routers/auth.py` (`GET`/`POST /login`), template `login.html`. Branché sur `authenticate()`, déjà partagé avec l'admin (RG-05/RG-06 s'appliquent sans code supplémentaire).
+  - Incrément 2 : `GET /login/photo` (fragment HTMX, RG-04) et câblage du `<select>` (`hx-get`/`hx-trigger="change"`/`hx-include="this"`), template `_photo_login.html`.
+- Fichiers : `app/services/users.py`, `app/security.py`, `app/main.py`, `app/routers/auth.py`, `app/templates/{login,_photo_login}.html`, `tests/test_login.py`.
+- Tests : 12 ajoutés, 150 verts au total.
+- Décisions validées :
+  - Connexion réussie redirige vers `/` (stub existant) plutôt que d'attendre US-10 : c'est la même route que celle-ci remplira.
+  - `hx-include="this"` sur le `<select>` : sans cette restriction, htmx inclut par défaut tout le formulaire englobant dans la requête GET, ce qui aurait mis le mot de passe en clair dans l'URL (et les logs serveur).
+  - `GET /login/photo` renvoie le même placeholder vide pour un prénom inconnu et pour un prénom désactivé (jamais les initiales) : aucune fuite au-delà de ce que la liste déroulante révèle déjà, qui liste publiquement tous les prénoms actifs.
+
+## 2026-11-09 — US-02 (incrément unique) — Se déconnecter — Lot 1 terminé
+- Fait : `POST /logout` dans `app/routers/auth.py` (RG-07, CSRF, réservé au rôle membre via `current_member` donc refusé à l'admin par RG-09) ; vide la session et redirige vers `/login`. Bouton « Se déconnecter » posé sur le stub `index.html` en attendant l'écran profil réel (US-23 à US-25).
+  - Bug de test corrigé au passage : la fixture `login_as` (conftest.py) posait le cookie de session sans domaine explicite. httpx normalise `testserver` en `testserver.local` ; toute réponse serveur posant elle-même un cookie (ex. ajout du jeton CSRF en session) créait donc un **second** cookie `session` de domaine différent, jamais invalidé par la déconnexion — masquant toute vérification d'un état réellement déconnecté. Invisible jusqu'ici car aucun test n'enchaînait requête-après-mutation-de-session puis vérification d'un état déconnecté. Corrigé en précisant `domain="testserver.local"` à la pose du cookie.
+- Fichiers : `app/routers/auth.py`, `app/templates/index.html`, `tests/test_login.py`, `tests/conftest.py`.
+- Tests : 5 ajoutés, 155 verts au total.
+- Décisions validées : aucune nouvelle règle métier ; `POST /logout` réutilise le contrôle d'accès déjà en place (RG-09) sans code spécifique.
+- **Lot 1 — Authentification et administration des comptes — entièrement livré** (US-04, US-05, US-06, US-03, US-07, US-01, US-02).
+
+## 2026-11-09 — PO-04, PO-05, PO-06, PO-07 tranchés avant le Lot 2
+- Fait : les quatre points ouverts bloquant respectivement US-17, US-16, US-10 et US-15 ont été tranchés avec Lukas avant de démarrer le Lot 2.
+- Décisions validées :
+  - **PO-06** : le compteur RG-13 compte les cadeaux achetés. Reporté en RG-13.
+  - **PO-05** : un cadeau acheté reste modifiable par son auteur ; les autres membres voient alors « modifié le … ». Reporté en RG-21.
+  - **PO-04** : un cadeau retiré reste ouvert aux commentaires (lecture et écriture), seule la réservation est bloquée. Reporté en RG-22.
+  - **PO-07** : le contenu de l'écran de détail (US-15) est confirmé tel que décrit dans son analyse fonctionnelle.
+
+## 2026-11-09 — US-10 (incréments 1 et 2) — Consulter la liste des personnes
+- Fait :
+  - Incrément 1 : `app/services/visibility.py` (nouveau — cœur de RG-30), `visible_gift_count(db, viewer, person)` : cadeaux personnels toujours comptés, suggestions comptées seulement si le viewer n'est pas le destinataire, retirés/archivés jamais comptés, achetés toujours comptés (PO-06). Fixture `create_gift` (factory minimale) ajoutée à `tests/conftest.py`.
+  - Incrément 2 : `app/routers/people.py` (`GET /`, remplace le stub posé en US-02), template `people.html` : membres actifs triés alphabétiquement, photo/placeholder, compteur, lien vers le formulaire d'ajout (`/cadeaux/nouveau`, US-11) et vers la liste de chaque personne (`/personnes/{id}`, US-13) — ces deux routes n'existent pas encore. `app/templates/index.html` supprimé (plus aucune référence).
+- Fichiers : `app/services/visibility.py`, `app/routers/people.py`, `app/main.py`, `app/templates/people.html`, `tests/conftest.py`, `tests/test_visibility.py`, `tests/test_people.py`.
+- Tests : 12 ajoutés, 167 verts au total.
+- Décisions validées : aucune règle métier nouvelle ; les deux liens de `people.html` pointent vers des routes à construire aux prochaines stories (US-11, US-13).
