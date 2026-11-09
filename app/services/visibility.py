@@ -5,6 +5,18 @@ from sqlalchemy.orm import Session
 from app.models import Gift, User
 
 
+class GiftNotFoundError(Exception):
+    pass
+
+
+class IsRecipientError(Exception):
+    """Le destinataire d'un cadeau n'agit jamais sur son propre cadeau (réservation,
+    achat) : levée même via une requête forgée (RG-26, RG-28), toujours traduite en 403.
+    """
+
+    pass
+
+
 @dataclass
 class GiftView:
     """Un cadeau annoté des informations calculées nécessaires à l'affichage (RG-30).
@@ -55,6 +67,39 @@ def visible_gifts_for(db: Session, viewer: User, person: User) -> list[GiftView]
 
     gifts = query.order_by(Gift.name).all()
     return [_to_gift_view(gift, is_own_list=is_own_list) for gift in gifts]
+
+
+def get_visible_gift(db: Session, viewer: User, gift_id: int) -> GiftView:
+    """RG-30/RG-40 (US-15) : détail d'un cadeau, filtré par les mêmes règles que sa liste.
+
+    Un cadeau inexistant, archivé, ou qui n'apparaîtrait pas dans la liste de son
+    destinataire pour ce `viewer` lève `GiftNotFoundError` — même 404 dans tous les cas,
+    pour ne jamais révéler qu'un cadeau cache une suggestion ou un retrait.
+    """
+    gift = db.get(Gift, gift_id)
+    if gift is None or gift.archived_year is not None:
+        raise GiftNotFoundError
+
+    vue = next(
+        (v for v in visible_gifts_for(db, viewer, gift.recipient) if v.gift.id == gift.id), None
+    )
+    if vue is None:
+        raise GiftNotFoundError
+    return vue
+
+
+def get_commentable_gift(db: Session, viewer: User, gift_id: int) -> Gift:
+    """RG-30/RG-31 (US-20) : le cadeau `gift_id`, si `viewer` peut accéder à son fil de
+    commentaires. Le destinataire n'y accède **jamais**, cadeau personnel ou suggestion
+    (`IsRecipientError`, toujours 403, même via requête forgée). Un cadeau retiré reste
+    commentable (RG-22/PO-04) ; archivé ou inexistant lève `GiftNotFoundError` (404).
+    """
+    gift = db.get(Gift, gift_id)
+    if gift is None or gift.archived_year is not None:
+        raise GiftNotFoundError
+    if gift.recipient_id == viewer.id:
+        raise IsRecipientError
+    return gift
 
 
 def _to_gift_view(gift: Gift, *, is_own_list: bool) -> GiftView:

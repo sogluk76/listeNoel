@@ -30,19 +30,19 @@ L'ordre des lots est pensé pour avoir un site utilisable au plus tôt. Chaque u
 |---|---|---|
 | ✅ | US-10 | Consulter la liste des personnes |
 | ✅ | US-11 | Ajouter un cadeau à ma liste |
-| ⬜ | US-13 | Consulter la liste de cadeaux d'une personne |
-| ⬜ | US-12 | Suggérer un cadeau pour quelqu'un |
-| ⬜ | US-15 | Consulter le détail d'un cadeau |
-| ⬜ | US-14 | Rechercher et trier les cadeaux |
-| ⬜ | US-16 | Modifier un cadeau |
-| ⬜ | US-17 | Supprimer un cadeau |
+| ✅ | US-13 | Consulter la liste de cadeaux d'une personne |
+| ✅ | US-12 | Suggérer un cadeau pour quelqu'un |
+| ✅ | US-15 | Consulter le détail d'un cadeau |
+| ✅ | US-14 | Rechercher et trier les cadeaux |
+| ✅ | US-16 | Modifier un cadeau |
+| ✅ | US-17 | Supprimer un cadeau |
 
 ## Lot 3 — Coordination
 | | US | Titre |
 |---|---|---|
-| ⬜ | US-18 | Réserver / annuler une réservation |
-| ⬜ | US-19 | Marquer acheté / annuler l'achat |
-| ⬜ | US-20 | Consulter les commentaires d'un cadeau |
+| ✅ | US-18 | Réserver / annuler une réservation |
+| ✅ | US-19 | Marquer acheté / annuler l'achat |
+| ✅ | US-20 | Consulter les commentaires d'un cadeau |
 | ⬜ | US-21 | Écrire un commentaire |
 | ⬜ | US-22 | Modifier / supprimer mon commentaire |
 

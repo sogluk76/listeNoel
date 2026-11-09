@@ -121,12 +121,16 @@ def create_gift(db_session):
         recipient=None,
         *,
         name="Cadeau",
+        price=None,
+        url=None,
         removed=False,
         archived_year=None,
         purchased_by=None,
     ):
         gift = Gift(
             name=name,
+            price=price,
+            url=url,
             recipient_id=(recipient or author).id,
             author_id=author.id,
             removed_at=datetime.now(UTC).replace(tzinfo=None) if removed else None,

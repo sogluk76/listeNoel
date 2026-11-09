@@ -133,6 +133,11 @@ def list_active_members(db: Session) -> list[User]:
     )
 
 
+def list_other_active_members(db: Session, viewer: User) -> list[User]:
+    """RG-19 : membres actifs disponibles comme destinataire d'une suggestion (pas moi)."""
+    return [member for member in list_active_members(db) if member.id != viewer.id]
+
+
 def get_member(db: Session, member_id: int) -> User:
     """Un compte membre par id. Lève `MemberNotFoundError` sinon (jamais l'admin)."""
     user = db.query(User).filter(User.id == member_id, User.role == "member").first()

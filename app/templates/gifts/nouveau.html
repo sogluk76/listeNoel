@@ -22,7 +22,22 @@
     <label for="image">Image</label>
     <input type="file" id="image" name="image" accept="image/jpeg,image/png,image/webp">
 
-    <p>Pour qui ? <strong>Moi</strong></p>
+    <label for="is_suggestion">Suggérer pour quelqu'un d'autre ?</label>
+    <select
+        id="is_suggestion"
+        name="is_suggestion"
+        hx-get="/cadeaux/nouveau/destinataire"
+        hx-trigger="change"
+        hx-target="#destinataire-block"
+        hx-include="this"
+    >
+        <option value="non" selected>Non</option>
+        <option value="oui">Oui</option>
+    </select>
+
+    <div id="destinataire-block">
+        {% include "gifts/_destinataire.html" %}
+    </div>
 
     <button type="submit">Ajouter</button>
     <a href="/">Annuler</a>

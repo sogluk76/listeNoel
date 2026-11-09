@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+
+{% block title %}{{ vue.gift.name }}{% endblock %}
+
+{% block content %}
+<a href="/personnes/{{ vue.gift.recipient_id }}">&larr; Retour</a>
+
+{% if vue.gift.image_path %}
+<img src="/media/{{ vue.gift.image_path }}" alt="" width="300">
+{% endif %}
+
+<h2>{{ vue.gift.name }}</h2>
+
+{% if vue.gift.price is not none %}
+<p>{{ vue.gift.price|prix_fr }}</p>
+{% endif %}
+
+{% if vue.gift.url %}
+<p><a href="{{ vue.gift.url }}" target="_blank" rel="noopener noreferrer">Voir le lien</a></p>
+{% endif %}
+
+<p>Ajouté le {{ vue.gift.created_at|date_fr }}</p>
+
+{% if vue.suggested_by %}
+<p><em>Suggéré par {{ vue.suggested_by.first_name }}</em></p>
+{% endif %}
+
+{% include "gifts/_reservation.html" %}
+
+{% if membre.id == vue.gift.author_id %}
+<a href="/cadeaux/{{ vue.gift.id }}/modifier">Modifier</a>
+<form method="post" action="/cadeaux/{{ vue.gift.id }}/supprimer">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+    <button type="submit">Supprimer</button>
+</form>
+{% endif %}
+{% endblock %}
