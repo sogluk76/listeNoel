@@ -10,6 +10,7 @@ from app.routers.auth import router as auth_router
 from app.routers.comments import router as comments_router
 from app.routers.gifts import router as gifts_router
 from app.routers.people import router as people_router
+from app.routers.profile import router as profile_router
 from app.routers.reservations import router as reservations_router
 from app.security import RedirectToLogin
 
@@ -30,6 +31,7 @@ app.include_router(auth_router)
 app.include_router(comments_router)
 app.include_router(gifts_router)
 app.include_router(people_router)
+app.include_router(profile_router)
 app.include_router(reservations_router)
 
 

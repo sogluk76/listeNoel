@@ -1,6 +1,10 @@
 from app.models import Comment
 
 
+def _poster_commentaire(client, gift_id, content, token):
+    client.post(f"/cadeaux/{gift_id}/commentaires", data={"content": content, "csrf_token": token})
+
+
 def test_us20_destinataire_dun_cadeau_personnel_recoit_403(client, alice, create_gift, login_as):
     gift = create_gift(alice, name="Vélo")
     login_as(client, alice)
@@ -204,3 +208,101 @@ def test_us21_badge_incremente_sur_la_liste(
     liste = client.get(f"/personnes/{alice.id}")
 
     assert "💬 1" in liste.text
+
+
+def test_us22_bouton_modifier_et_supprimer_visibles_seulement_sur_mon_message(
+    client, alice, bob, chloe, create_gift, login_as, extract_csrf_token, db_session
+):
+    gift = create_gift(alice, name="Vélo")
+    login_as(client, bob)
+    token = extract_csrf_token(client.get(f"/cadeaux/{gift.id}/commentaires").text)
+    _poster_commentaire(client, gift.id, "Message de Bob", token)
+    comment = db_session.query(Comment).filter_by(gift_id=gift.id).one()
+
+    login_as(client, chloe)
+    page_chloe = client.get(f"/cadeaux/{gift.id}/commentaires")
+
+    login_as(client, bob)
+    page_bob = client.get(f"/cadeaux/{gift.id}/commentaires")
+
+    assert f"/commentaires/{comment.id}/modifier" not in page_chloe.text
+    assert f"/commentaires/{comment.id}/modifier" in page_bob.text
+
+
+def test_us22_modifier_message_dun_autre_recoit_403(
+    client, alice, bob, chloe, create_gift, login_as, extract_csrf_token, db_session
+):
+    gift = create_gift(alice, name="Vélo")
+    login_as(client, bob)
+    token_bob = extract_csrf_token(client.get(f"/cadeaux/{gift.id}/commentaires").text)
+    _poster_commentaire(client, gift.id, "Message de Bob", token_bob)
+    comment = db_session.query(Comment).filter_by(gift_id=gift.id).one()
+
+    login_as(client, chloe)
+    token_chloe = extract_csrf_token(client.get(f"/cadeaux/{gift.id}/commentaires").text)
+
+    response = client.post(
+        f"/commentaires/{comment.id}/modifier",
+        data={"content": "Piraté", "csrf_token": token_chloe},
+    )
+    get_response = client.get(f"/commentaires/{comment.id}/modifier")
+
+    assert response.status_code == 403
+    assert get_response.status_code == 403
+
+
+def test_us22_supprimer_message_dun_autre_recoit_403(
+    client, alice, bob, chloe, create_gift, login_as, extract_csrf_token, db_session
+):
+    gift = create_gift(alice, name="Vélo")
+    login_as(client, bob)
+    token_bob = extract_csrf_token(client.get(f"/cadeaux/{gift.id}/commentaires").text)
+    _poster_commentaire(client, gift.id, "Message de Bob", token_bob)
+    comment = db_session.query(Comment).filter_by(gift_id=gift.id).one()
+
+    login_as(client, chloe)
+    token_chloe = extract_csrf_token(client.get(f"/cadeaux/{gift.id}/commentaires").text)
+
+    response = client.post(
+        f"/commentaires/{comment.id}/supprimer", data={"csrf_token": token_chloe}
+    )
+
+    assert response.status_code == 403
+    assert db_session.get(Comment, comment.id) is not None
+
+
+def test_us22_modifier_affiche_modifie(
+    client, alice, bob, create_gift, login_as, extract_csrf_token, db_session
+):
+    gift = create_gift(alice, name="Vélo")
+    login_as(client, bob)
+    token = extract_csrf_token(client.get(f"/cadeaux/{gift.id}/commentaires").text)
+    _poster_commentaire(client, gift.id, "Premier texte", token)
+    comment = db_session.query(Comment).filter_by(gift_id=gift.id).one()
+
+    response = client.post(
+        f"/commentaires/{comment.id}/modifier",
+        data={"content": "Texte corrigé", "csrf_token": token},
+    )
+
+    assert response.status_code == 200
+    assert "Texte corrigé" in response.text
+    assert "(modifié)" in response.text
+
+
+def test_us22_supprimer_fait_disparaitre_le_message_et_le_badge(
+    client, alice, bob, create_gift, login_as, extract_csrf_token, db_session
+):
+    gift = create_gift(alice, name="Vélo")
+    login_as(client, bob)
+    token = extract_csrf_token(client.get(f"/cadeaux/{gift.id}/commentaires").text)
+    _poster_commentaire(client, gift.id, "À supprimer", token)
+    comment = db_session.query(Comment).filter_by(gift_id=gift.id).one()
+
+    response = client.post(f"/commentaires/{comment.id}/supprimer", data={"csrf_token": token})
+    fil = client.get(f"/cadeaux/{gift.id}/commentaires")
+    liste = client.get(f"/personnes/{alice.id}")
+
+    assert response.status_code == 200
+    assert "À supprimer" not in fil.text
+    assert "💬 0" in liste.text

@@ -43,8 +43,8 @@ L'ordre des lots est pensé pour avoir un site utilisable au plus tôt. Chaque u
 | ✅ | US-18 | Réserver / annuler une réservation |
 | ✅ | US-19 | Marquer acheté / annuler l'achat |
 | ✅ | US-20 | Consulter les commentaires d'un cadeau |
-| ⬜ | US-21 | Écrire un commentaire |
-| ⬜ | US-22 | Modifier / supprimer mon commentaire |
+| ✅ | US-21 | Écrire un commentaire |
+| ✅ | US-22 | Modifier / supprimer mon commentaire |
 
 ## Lot 4 — Profil
 | | US | Titre |

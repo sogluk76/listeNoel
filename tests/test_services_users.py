@@ -18,6 +18,7 @@ from app.services.users import (
     reset_password,
     unlock_member,
     update_member,
+    update_own_photo,
 )
 
 
@@ -381,3 +382,34 @@ def test_unlock_member_sans_effet_si_compte_non_bloque(db_session, alice):
 def test_unlock_member_refuse_sur_id_admin(db_session, admin):
     with pytest.raises(MemberNotFoundError):
         unlock_member(db_session, admin.id)
+
+
+def test_us23_membre_change_sa_photo(db_session, alice, make_image_bytes):
+    membre = update_own_photo(db_session, alice, photo=make_image_bytes("PNG"))
+
+    assert membre.photo_path is not None
+    assert (settings.media_dir / membre.photo_path).exists()
+
+
+def test_us23_remplacer_photo_supprime_lancienne(db_session, alice, make_image_bytes):
+    update_own_photo(db_session, alice, photo=make_image_bytes("PNG"))
+    ancien_chemin = settings.media_dir / alice.photo_path
+
+    update_own_photo(db_session, alice, photo=make_image_bytes("PNG"))
+
+    assert not ancien_chemin.exists()
+
+
+def test_us23_supprimer_la_photo(db_session, alice, make_image_bytes):
+    update_own_photo(db_session, alice, photo=make_image_bytes("PNG"))
+    ancien_chemin = settings.media_dir / alice.photo_path
+
+    membre = update_own_photo(db_session, alice, remove_photo=True)
+
+    assert membre.photo_path is None
+    assert not ancien_chemin.exists()
+
+
+def test_us23_fichier_invalide_refuse(db_session, alice):
+    with pytest.raises(ValueError):
+        update_own_photo(db_session, alice, photo=b"pas une image")

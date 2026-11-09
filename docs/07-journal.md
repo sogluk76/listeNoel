@@ -178,3 +178,16 @@ Une entrée par incrément livré (tests verts). Format :
 - Fichiers : `app/services/visibility.py`, `app/routers/comments.py`, `app/templates/comments/fil.html`, `app/templates/comments/_messages.html`, `app/main.py`, `tests/test_comments.py`, `tests/test_visibility.py`.
 - Tests : 16 ajoutés, 314 verts au total.
 - Décisions validées : aucune règle métier nouvelle. Story volontairement limitée à la lecture ; le champ de saisie (US-21) viendra dans la même page sans toucher au `<div id="messages">` interrogé par le polling, pour que « le rafraîchissement n'efface pas le texte en cours de saisie » soit garanti par construction.
+
+## 2026-11-09 — US-21 (incrément unique) — Écrire un commentaire
+- Fait : `create_comment(db, author, gift_id, content)` dans `app/services/comments.py` (nouveau, RG-33) — réutilise `get_commentable_gift()` (US-20) pour le contrôle d'accès : le destinataire ne peut pas plus écrire que lire sur son propre cadeau (403), sans dupliquer la règle. Message vide/espaces ou > 1000 caractères refusé (`ValueError`), emojis acceptés tels quels. `POST /cadeaux/{id}/commentaires` (`app/routers/comments.py`) renvoie le fragment `_messages.html`. `app/templates/comments/fil.html` : formulaire ajouté **hors** du `<div id="messages">` interrogé par le polling de US-20 (conçu pour ça dès cette story), vidé après envoi réussi via l'attribut déclaratif `hx-on::after-request`. Le badge de commentaires n'a rien demandé de neuf : il recompte `len(gift.comments)` à chaque chargement.
+- Fichiers : `app/services/comments.py`, `app/routers/comments.py`, `app/templates/comments/fil.html`, `tests/test_services_comments.py`, `tests/test_comments.py`.
+- Tests : 15 ajoutés, 327 verts au total.
+- Décisions validées : aucune règle métier nouvelle. Point d'attention : en cas de message refusé (400), aucun retour visuel n'est rendu dans le fil — pas couvert par les AC, à améliorer plus tard si besoin.
+
+## 2026-11-09 — US-22 (incrément unique) — Modifier / supprimer mon commentaire — Lot 3 terminé
+- Fait : `get_own_comment()`, `update_comment()`, `delete_comment()` dans `app/services/comments.py` (RG-35) — `_clean_content()` extrait pour être partagée entre écriture (US-21) et modification. Un cadeau archivé rend son commentaire inaccessible (`CommentNotFoundError`, RG-40 « n'apparaît plus nulle part ») ; un cadeau retiré reste modifiable (PO-04). `app/routers/comments.py` : `GET/POST /commentaires/{id}/modifier`, `POST /commentaires/{id}/supprimer`. Chaque `<li id="commentaire-{id}">` (`app/templates/comments/_message.html`, extrait de `_messages.html`) se swap indépendamment via HTMX (`hx-swap="outerHTML"` ciblé) plutôt que de redessiner tout le fil ; « Supprimer » (confirmation via `hx-confirm`) renvoie une réponse vide qui fait disparaître le `<li>`.
+- Fichiers : `app/services/comments.py`, `app/routers/comments.py`, `app/templates/comments/_messages.html`, `app/templates/comments/_message.html`, `app/templates/comments/_edit_form.html`, `tests/test_services_comments.py`, `tests/test_comments.py`.
+- Tests : 13 ajoutés, 340 verts au total.
+- Décisions validées : aucune règle métier nouvelle.
+- **Lot 3 — Coordination — entièrement livré** (US-18, US-19, US-20, US-21, US-22).

@@ -1,0 +1,29 @@
+<li id="commentaire-{{ comment.id }}" class="{{ 'moi' if comment.author_id == membre.id else 'autre' }}">
+    {% if comment.author.photo_path %}
+    <img src="/media/{{ comment.author.photo_path }}" alt="" width="40" height="40">
+    {% else %}
+    <span class="photo-placeholder">{{ comment.author.first_name[0] }}</span>
+    {% endif %}
+    <strong>{{ comment.author.first_name }}</strong>
+    <time>{{ comment.created_at|date_fr }}</time>
+    <p>{{ comment.content }}</p>
+    {% if comment.updated_at %}
+    <em>(modifié)</em>
+    {% endif %}
+    {% if comment.author_id == membre.id %}
+    <button
+        hx-get="/commentaires/{{ comment.id }}/modifier"
+        hx-target="#commentaire-{{ comment.id }}"
+        hx-swap="outerHTML"
+    >Modifier</button>
+    <form
+        hx-post="/commentaires/{{ comment.id }}/supprimer"
+        hx-target="#commentaire-{{ comment.id }}"
+        hx-swap="outerHTML"
+        hx-confirm="Supprimer ce message ?"
+    >
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <button type="submit">Supprimer</button>
+    </form>
+    {% endif %}
+</li>

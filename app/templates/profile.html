@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+
+{% block title %}Mon profil{% endblock %}
+
+{% block content %}
+<a href="/">&larr; Liste des personnes</a>
+<h2>Mon profil, {{ membre.first_name }}</h2>
+
+<section>
+    <h3>Ma photo</h3>
+    {% if erreur_photo %}
+    <p role="alert">{{ erreur_photo }}</p>
+    {% endif %}
+    <form method="post" action="/profil/photo" enctype="multipart/form-data">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+
+        {% if membre.photo_path %}
+        <img src="/media/{{ membre.photo_path }}" alt="" width="80" height="80">
+        <label><input type="checkbox" name="remove_photo" value="oui"> Supprimer la photo</label>
+        {% else %}
+        <span class="photo-placeholder">{{ membre.first_name[0] }}</span>
+        {% endif %}
+
+        <label for="photo">Remplacer la photo (JPEG, PNG ou WebP, 5 Mo maximum)</label>
+        <input type="file" id="photo" name="photo" accept="image/jpeg,image/png,image/webp">
+
+        <button type="submit">Enregistrer</button>
+    </form>
+</section>
+
+<form method="post" action="/logout">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+    <button type="submit">Se déconnecter</button>
+</form>
+{% endblock %}

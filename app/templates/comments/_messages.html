@@ -1,17 +1,5 @@
 <ul>
     {% for comment in gift.comments %}
-    <li class="{{ 'moi' if comment.author_id == membre.id else 'autre' }}">
-        {% if comment.author.photo_path %}
-        <img src="/media/{{ comment.author.photo_path }}" alt="" width="40" height="40">
-        {% else %}
-        <span class="photo-placeholder">{{ comment.author.first_name[0] }}</span>
-        {% endif %}
-        <strong>{{ comment.author.first_name }}</strong>
-        <time>{{ comment.created_at|date_fr }}</time>
-        <p>{{ comment.content }}</p>
-        {% if comment.updated_at %}
-        <em>(modifié)</em>
-        {% endif %}
-    </li>
+    {% include "comments/_message.html" %}
     {% endfor %}
 </ul>

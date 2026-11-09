@@ -194,6 +194,25 @@ def unlock_member(db: Session, member_id: int) -> User:
     return member
 
 
+def _swap_photo(member: User, photo: bytes | None, remove_photo: bool) -> None:
+    """RG-17 : remplace ou supprime la photo d'un membre, en nettoyant l'ancien fichier
+    du disque. Ne commite pas : à l'appelant de le faire avec le reste de ses changements.
+    """
+    nouveau_photo_path = member.photo_path
+    if photo is not None:
+        try:
+            nouveau_photo_path = save_profile_photo(photo)
+        except InvalidImageError as exc:
+            raise ValueError(str(exc)) from exc
+    elif remove_photo:
+        nouveau_photo_path = None
+
+    if nouveau_photo_path != member.photo_path and member.photo_path is not None:
+        delete_profile_photo(member.photo_path)
+
+    member.photo_path = nouveau_photo_path
+
+
 def update_member(
     db: Session,
     member_id: int,
@@ -215,21 +234,20 @@ def update_member(
     if _first_name_deja_pris(db, first_name, exclude_id=member.id):
         raise ValueError(f"Le prénom « {first_name} » est déjà utilisé.")
 
-    nouveau_photo_path = member.photo_path
-    if photo is not None:
-        try:
-            nouveau_photo_path = save_profile_photo(photo)
-        except InvalidImageError as exc:
-            raise ValueError(str(exc)) from exc
-    elif remove_photo:
-        nouveau_photo_path = None
-
-    if nouveau_photo_path != member.photo_path and member.photo_path is not None:
-        delete_profile_photo(member.photo_path)
+    _swap_photo(member, photo, remove_photo)
 
     member.first_name = first_name
     member.is_active = is_active
-    member.photo_path = nouveau_photo_path
+    db.commit()
+    db.refresh(member)
+    return member
+
+
+def update_own_photo(
+    db: Session, member: User, photo: bytes | None = None, remove_photo: bool = False
+) -> User:
+    """RG-36 (US-23) : un membre change ou supprime sa propre photo de profil."""
+    _swap_photo(member, photo, remove_photo)
     db.commit()
     db.refresh(member)
     return member

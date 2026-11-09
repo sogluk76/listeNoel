@@ -21,8 +21,5 @@
     {% endfor %}
 </ul>
 
-<form method="post" action="/logout">
-    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-    <button type="submit">Se déconnecter</button>
-</form>
+<a href="/profil">Mon profil</a>
 {% endblock %}
