@@ -20,7 +20,6 @@
     <a class="app-header__brand" href="/">{{ icon("gift") }}<span>Liste de Noël</span></a>
     {% if user and user.is_member %}
     <nav class="app-header__actions" aria-label="Navigation">
-      <a class="icon-btn" href="/cadeaux/nouveau" aria-label="Ajouter un cadeau" title="Ajouter un cadeau">{{ icon("plus") }}</a>
       <a class="app-header__profile" href="/profil" aria-label="Mon profil" title="Mon profil">{{ avatar(user, "sm") }}</a>
     </nav>
     {% endif %}
