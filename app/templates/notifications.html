@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% from "macros.html" import avatar, icon %}
+{% block title %}Notifications · Liste de Noël{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>Notifications</h1>
+    <p class="muted">Les messages où quelqu'un t'a mentionné avec @{{ user.first_name }}.</p>
+  </div>
+</div>
+
+{% if not items %}
+<div class="empty">
+  {{ icon("bell") }}
+  <p>Aucune notification pour l'instant.</p>
+  <p>Quand quelqu'un écrira @{{ user.first_name }} dans un commentaire, tu le verras ici.</p>
+</div>
+{% else %}
+<ul class="list">
+  {% for n, unread in items %}
+  {% set c = n.comment %}
+  <li>
+    <a class="notif {% if unread %}notif--unread{% endif %}" href="/cadeaux/{{ c.gift_id }}/commentaires#c{{ c.id }}">
+      {{ avatar(c.author, "md") }}
+      <span class="notif__body">
+        <span class="notif__title"><strong>{{ c.author.first_name }}</strong> t'a mentionné sur « {{ c.gift.name }} », pour {{ c.gift.recipient.first_name }}</span>
+        <span class="notif__text">{{ c.content | truncate(140) }}</span>
+        <time class="notif__time">{{ n.created_at | dt }}</time>
+      </span>
+      {% if unread %}<span class="pill pill--bought">Nouveau</span>{% endif %}
+      {{ icon("chevron") }}
+    </a>
+  </li>
+  {% endfor %}
+</ul>
+{% endif %}
+{% endblock %}

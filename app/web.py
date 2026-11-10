@@ -8,10 +8,13 @@ from zoneinfo import ZoneInfo
 from fastapi import Request
 from fastapi.responses import HTMLResponse, RedirectResponse, Response
 from fastapi.templating import Jinja2Templates
+from sqlalchemy.orm import object_session
 
 from app.config import settings
 from app.models import User
 from app.security import csrf_token, pop_flashes
+from app.services import visibility
+from app.services.notifications import render_mentions
 from app.services.text import color_index, initials
 
 PARIS = ZoneInfo("Europe/Paris")
@@ -57,7 +60,16 @@ templates.env.filters["d"] = format_date
 templates.env.filters["price"] = format_price
 templates.env.filters["initials"] = initials
 templates.env.filters["color_index"] = color_index
+templates.env.filters["mentions"] = render_mentions
 templates.env.globals["STATUS_LABELS"] = STATUS_LABELS
+
+
+def _notification_count(user: User | None) -> int:
+    """Nombre affiché sur la cloche de l'en-tête (RG-45). Toujours 0 pour l'admin."""
+    if user is None or not user.is_member:
+        return 0
+    db = object_session(user)
+    return visibility.unread_notification_count(db, user) if db is not None else 0
 
 
 def render(
@@ -69,6 +81,7 @@ def render(
 ) -> HTMLResponse:
     ctx = dict(context or {})
     ctx["user"] = user
+    ctx["notification_count"] = _notification_count(user)
     ctx["csrf_token"] = csrf_token(request)
     ctx["flashes"] = pop_flashes(request)
     ctx["settings"] = settings

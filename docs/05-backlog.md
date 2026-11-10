@@ -61,6 +61,12 @@ Les lots 0 à 5 ont été livrés en une seule fois le 10/11/2026 (cf. journal).
 | ✅ | US-08 | Supprimer un cadeau (admin) |
 | ✅ | US-09 | Clôturer l'année |
 
+## Lot 7 — Mentions et notifications
+| | US | Titre |
+|---|---|---|
+| ✅ | US-27 | Mentionner quelqu'un dans un commentaire |
+| ✅ | US-28 | Voir mes notifications (cloche et page) |
+
 ## Lot 6 — Mise en production
 | | Tâche |
 |---|---|

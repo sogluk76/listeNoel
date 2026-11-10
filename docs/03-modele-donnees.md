@@ -13,6 +13,8 @@ erDiagram
     gifts ||--o{ reservations : "est réservé"
     gifts ||--o{ comments : "a"
     users ||--o{ comments : "écrit"
+    comments ||--o{ notifications : "mentionne"
+    users ||--o{ notifications : "reçoit"
 
     users {
         INTEGER id PK
@@ -57,6 +59,14 @@ erDiagram
         DATETIME created_at
         DATETIME updated_at "nullable, rempli si modifié"
     }
+
+    notifications {
+        INTEGER id PK
+        INTEGER user_id FK "membre mentionné"
+        INTEGER comment_id FK
+        DATETIME created_at
+        DATETIME read_at "nullable, rempli à la lecture"
+    }
 ```
 
 ## Glossaire
@@ -72,6 +82,7 @@ erDiagram
 | `gifts.archived_year` | Année de clôture (RG-39) |
 | `reservations` | « Je m'en occupe », plusieurs par cadeau (RG-26) |
 | `comments` | Fil de discussion d'un cadeau |
+| `notifications` | Mention `@Prénom` dans un commentaire, à signaler au membre `user_id` (RG-42). Non lue ⇔ `read_at IS NULL` |
 
 ## Statut d'un cadeau (calculé, non stocké)
 
@@ -135,6 +146,16 @@ CREATE TABLE comments (
     updated_at DATETIME
 );
 CREATE INDEX ix_comments_gift ON comments(gift_id, created_at);
+
+CREATE TABLE notifications (
+    id         INTEGER PRIMARY KEY,
+    user_id    INTEGER NOT NULL REFERENCES users(id),
+    comment_id INTEGER NOT NULL REFERENCES comments(id) ON DELETE CASCADE,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    read_at    DATETIME,
+    UNIQUE (user_id, comment_id)
+);
+CREATE INDEX ix_notifications_user ON notifications(user_id, read_at);
 ```
 
 ## Contraintes portées par le code applicatif
@@ -145,4 +166,5 @@ Ces contraintes ne sont pas exprimables simplement en SQL. Chacune doit avoir so
 - `purchased_by_id` doit correspondre à un réservant au moment de l'achat (RG-28).
 - Aucune réservation ne peut être ajoutée ou supprimée si le cadeau est acheté, retiré ou archivé.
 - Un compte `admin` n'est jamais destinataire, auteur, réservant ni auteur de commentaire.
+- Une notification ne vise jamais le destinataire du cadeau commenté, ni l'auteur du commentaire (RG-42, RG-43).
 - SQLite : activer `PRAGMA foreign_keys = ON` à chaque connexion.

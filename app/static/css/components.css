@@ -825,3 +825,124 @@ input[type="file"]::file-selector-button {
 @media (min-width: 640px) {
   .gift-grid { grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); }
 }
+
+/* --- Mentions et notifications ------------------------------------------- */
+.mention {
+  padding: 0 var(--sp-1);
+  border-radius: var(--r-sm);
+  background: var(--c-pine-soft);
+  color: var(--c-pine-strong);
+  font-weight: 700;
+}
+
+.chat__msg--mine .mention {
+  background: color-mix(in srgb, var(--c-on-accent) 20%, transparent);
+  color: inherit;
+}
+
+.chat__msg:target .chat__bubble {
+  outline: 3px solid var(--c-gold);
+  outline-offset: 2px;
+}
+
+.notif {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-4);
+  min-height: 68px;
+  padding: var(--sp-3) var(--sp-4);
+  border: 1px solid var(--c-line);
+  border-radius: var(--r-lg);
+  background: var(--c-surface);
+  color: var(--c-ink);
+  text-decoration: none;
+  transition: border-color var(--dur-fast) var(--ease-out), box-shadow var(--dur-fast) var(--ease-out);
+}
+
+.notif:hover {
+  border-color: var(--c-pine);
+  box-shadow: var(--shadow-1);
+  color: var(--c-ink);
+}
+
+.notif--unread { box-shadow: inset 4px 0 0 var(--c-berry); }
+
+.notif > .avatar,
+.notif > .pill,
+.notif > .icon { flex: none; }
+
+.notif > .icon { color: var(--c-ink-soft); }
+
+.notif__body {
+  display: grid;
+  flex: 1;
+  gap: var(--sp-1);
+  min-width: 0;
+}
+
+.notif__text {
+  overflow: hidden;
+  color: var(--c-ink-soft);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.notif__time {
+  color: var(--c-ink-soft);
+  font-size: var(--fs-sm);
+}
+
+.chat__author {
+  margin: calc(-1 * var(--sp-2)) 0;
+  padding: var(--sp-2) 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.chat__author:hover { text-decoration: underline; }
+
+.mention-host { position: relative; }
+
+.mention-list {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  z-index: 6;
+  min-width: 220px;
+  max-width: 100%;
+  margin: var(--sp-1) 0 0;
+  padding: var(--sp-1);
+  border: 1px solid var(--c-line);
+  border-radius: var(--r-md);
+  background: var(--c-surface);
+  box-shadow: var(--shadow-2);
+  list-style: none;
+}
+
+.mention-list[hidden] { display: none; }
+
+.chat-form .mention-list {
+  top: auto;
+  bottom: 100%;
+  margin: 0 0 var(--sp-1);
+}
+
+.mention-list__item {
+  display: flex;
+  align-items: center;
+  min-height: var(--tap);
+  padding: 0 var(--sp-3);
+  border-radius: var(--r-sm);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.mention-list__item:hover,
+.mention-list__item[aria-selected="true"] {
+  background: var(--c-pine-soft);
+  color: var(--c-pine-strong);
+}

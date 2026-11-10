@@ -2,8 +2,9 @@
 ni dans les pages, ni dans les fragments HTMX, ni par URL forgée."""
 
 import pytest
+from sqlalchemy import select
 
-from app.models import Comment, Reservation, utcnow
+from app.models import Comment, Notification, Reservation, utcnow
 
 HTMX = {"HX-Request": "true"}
 
@@ -151,3 +152,68 @@ def test_rg11_session_d_un_compte_desactive_refusee(login, db, alice):
     alice.is_active = False
     db.commit()
     assert client.get("/").headers["location"] == "/login"
+
+
+# --- Notifications de mention (RG-43, RG-45) ----------------------------------
+
+
+def _bell_count(html: str) -> bool:
+    return "app-header__bell-count" in html
+
+
+def test_us27_mentionner_le_destinataire_ne_le_notifie_jamais(login, db, alice, bob, make_gift):
+    """La surprise d'abord : Alice ne doit pas apprendre qu'on parle de son cadeau."""
+    gift = make_gift(alice, alice, "Vélo")
+    alice_client = login(alice)
+    response = login(bob).post(
+        f"/cadeaux/{gift.id}/commentaires", data={"content": "SECRET @Alice va adorer"}
+    )
+    assert response.status_code == 303  # le commentaire est accepté
+    db.expire_all()
+    assert db.scalars(select(Notification)).all() == []
+
+    for path in ("/", "/notifications", f"/personnes/{alice.id}", f"/cadeaux/{gift.id}"):
+        html = alice_client.get(path).text
+        assert not _bell_count(html), path
+        assert "SECRET" not in html, path
+    assert "Aucune notification" in alice_client.get("/notifications").text
+    # Pour les autres, le prénom du destinataire reste du texte simple.
+    thread = login(bob).get(f"/cadeaux/{gift.id}/commentaires/fil").text
+    assert "SECRET @Alice va adorer" in thread and 'class="mention"' not in thread
+
+
+def test_us28_notification_forgee_en_base_invisible_pour_le_destinataire(
+    login, db, alice, bob, make_gift
+):
+    """Défense en profondeur : même si une ligne existait, le destinataire ne voit rien."""
+    gift = make_gift(alice, alice, "Vélo")
+    comment = Comment(author_id=bob.id, content="SECRET-FORGE @Alice")
+    gift.comments.append(comment)
+    comment.notifications.append(Notification(user_id=alice.id))
+    db.commit()
+    client = login(alice)
+    html = client.get("/notifications").text
+    assert "SECRET-FORGE" not in html and "Aucune notification" in html
+    assert not _bell_count(client.get("/").text)
+    db.expire_all()
+    assert db.scalar(select(Notification)).read_at is None  # pas même marquée lue
+
+
+def test_us28_notification_masquee_si_le_cadeau_n_est_plus_visible(
+    login, db, alice, bob, chloe, make_gift
+):
+    gift = make_gift(chloe, chloe, "Vélo")
+    login(alice).post(f"/cadeaux/{gift.id}/commentaires", data={"content": "ARCHIVE-TEST @Bob"})
+    client = login(bob)
+    assert _bell_count(client.get("/").text)
+
+    gift.archived_year = 2026  # RG-40
+    db.commit()
+    assert not _bell_count(client.get("/").text)
+    assert "ARCHIVE-TEST" not in client.get("/notifications").text
+
+    gift.archived_year = None
+    chloe.is_active = False  # RG-11 : la liste d'un compte désactivé est masquée
+    db.commit()
+    assert not _bell_count(client.get("/").text)
+    assert "ARCHIVE-TEST" not in client.get("/notifications").text

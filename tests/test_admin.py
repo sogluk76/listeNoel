@@ -5,7 +5,7 @@ from datetime import timedelta
 from sqlalchemy import select
 
 from app.config import settings
-from app.models import Comment, Gift, Reservation, User, utcnow
+from app.models import Comment, Gift, Notification, Reservation, User, utcnow
 from app.services import users as users_service
 from tests.conftest import PASSWORD, png_bytes, use_csrf
 
@@ -141,6 +141,10 @@ def test_us26_supprimer_un_compte_et_toute_sa_trace(
     cadeau_de_bob.comments.append(Comment(author_id=chloe.id, content="Chloé en parle"))
     cadeau_de_bob.purchased_by_id = alice.id
     cadeau_de_bob.purchased_at = utcnow()
+    # Notifications : une reçue par Alice, une envoyée par Alice, une sur sa liste
+    cadeau_de_bob.comments[1].notifications.append(Notification(user_id=alice.id))
+    cadeau_de_bob.comments[0].notifications.append(Notification(user_id=chloe.id))
+    sa_liste.comments[0].notifications.append(Notification(user_id=chloe.id))
     db.commit()
     alice_id, bob_gift_id = alice.id, cadeau_de_bob.id
     supprimes = [sa_liste.id, suggestion_pour_alice.id, suggestion_d_alice.id, archive.id]
@@ -168,6 +172,7 @@ def test_us26_supprimer_un_compte_et_toute_sa_trace(
     assert reste.purchased_by_id is None and reste.purchased_at is None
     assert db.scalars(select(Reservation).where(Reservation.user_id == alice_id)).all() == []
     assert db.scalars(select(Comment).where(Comment.author_id == alice_id)).all() == []
+    assert db.scalars(select(Notification)).all() == []
     assert db.get(User, bob.id) is not None and db.get(User, chloe.id) is not None
 
     # Alice ne peut plus rien faire : session refusée, absente des listes

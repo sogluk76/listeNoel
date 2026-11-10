@@ -6,7 +6,7 @@ Ces fonctions ne renvoient jamais ni commentaires, ni réservations, ni statut d
 from sqlalchemy import or_, select
 from sqlalchemy.orm import Session
 
-from app.models import Comment, Gift, Reservation, User
+from app.models import Comment, Gift, Notification, Reservation, User
 from app.services import images
 from app.services.text import fold
 
@@ -26,6 +26,8 @@ def delete_member(db: Session, member: User) -> None:
     pour d'autres, ses réservations et ses commentaires. Un cadeau qu'il avait marqué
     « acheté » redevient réservé ou disponible. Les cadeaux archivés sont concernés aussi.
     """
+    for notification in db.scalars(select(Notification).where(Notification.user_id == member.id)):
+        db.delete(notification)
     for reservation in db.scalars(select(Reservation).where(Reservation.user_id == member.id)):
         db.delete(reservation)
     for comment in db.scalars(select(Comment).where(Comment.author_id == member.id)):

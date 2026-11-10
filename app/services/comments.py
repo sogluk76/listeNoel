@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 
 from app.errors import Forbidden, Invalid, NotFound
 from app.models import Comment, Gift, User, utcnow
-from app.services import visibility
+from app.services import notifications, visibility
 
 CONTENT_MAX = 1000
 
@@ -28,6 +28,7 @@ def thread(gift: Gift) -> list[Comment]:
 def add(db: Session, user: User, gift: Gift, content: str) -> Comment:
     comment = Comment(author_id=user.id, content=clean_content(content))
     gift.comments.append(comment)
+    notifications.sync(db, comment, gift)
     db.commit()
     return comment
 
@@ -46,6 +47,7 @@ def get_own(db: Session, user: User, comment_id: int) -> Comment:
 def edit(db: Session, comment: Comment, content: str) -> None:
     comment.content = clean_content(content)
     comment.updated_at = utcnow()
+    notifications.sync(db, comment, comment.gift)
     db.commit()
 
 

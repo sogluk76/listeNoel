@@ -41,6 +41,7 @@ liste-noel/
 │   │   ├── gifts.py
 │   │   ├── reservations.py
 │   │   ├── comments.py
+│   │   ├── notifications.py # mentions @Prénom, notifications (RG-42 à RG-45)
 │   │   ├── users.py
 │   │   ├── admin.py         # liste des cadeaux côté admin, clôture de l'année
 │   │   ├── images.py
@@ -50,10 +51,11 @@ liste-noel/
 │   │   ├── people.py        # /
 │   │   ├── gifts.py         # /personnes/{id}, /cadeaux/...
 │   │   ├── comments.py      # /cadeaux/{id}/commentaires, /commentaires/{id}/...
+│   │   ├── notifications.py # /notifications
 │   │   ├── profile.py       # /profil
 │   │   └── admin.py         # /admin/...
 │   ├── templates/           # pages, fragments HTMX (_*.html), macros.html, admin/
-│   └── static/              # css/ (tokens, base, components), fonts/, js/htmx.min.js
+│   └── static/              # css/ (tokens, base, components), fonts/, js/ (htmx.min.js, mentions.js)
 ├── migrations/              # Alembic
 ├── data/                    # base SQLite et clé de session (hors git)
 ├── media/                   # images envoyées (hors git, volume persistant en prod)
@@ -68,7 +70,7 @@ liste-noel/
 1. **Les services portent les règles métier**, les routers ne font que HTTP + templates. Les services sont testables sans serveur.
 2. **Toute lecture de cadeaux/commentaires/réservations côté membre passe par `services/visibility.py`.** Aucune requête directe dans un router.
 3. **Contrôle d'accès par dépendances FastAPI** : `current_member` (403 si admin ou non connecté) et `current_admin` (403 si membre).
-4. **Pas de JavaScript maison** au-delà de HTMX, sauf besoin justifié et validé.
+4. **Pas de JavaScript maison** au-delà de HTMX, sauf besoin justifié et validé. Seule exception à ce jour : `static/js/mentions.js` (aide à la saisie des mentions, US-27, et envoi avec Entrée sur ordinateur, RG-33), chargé uniquement sur les pages de commentaires.
 
 ## Sécurité
 

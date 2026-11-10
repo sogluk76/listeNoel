@@ -17,6 +17,7 @@ from app.models import (
     STATUS_REMOVED,
     STATUS_RESERVED,
     Gift,
+    Notification,
     Reservation,
     User,
 )
@@ -153,6 +154,30 @@ def get_gift_with_secrets(db: Session, viewer: User, gift_id: int) -> Gift:
     if not can_see_secrets(viewer, gift):
         raise Forbidden()
     return gift
+
+
+def my_notifications(db: Session, viewer: User) -> list[Notification]:
+    """Notifications du viewer, de la plus récente à la plus ancienne (RG-45).
+
+    Une notification renvoie vers un commentaire : elle n'est renvoyée que si le viewer
+    a le droit de voir le fil de ce cadeau. Le destinataire n'en reçoit donc jamais,
+    même si une ligne existait en base par erreur.
+    """
+    stmt = (
+        select(Notification)
+        .where(Notification.user_id == viewer.id)
+        .order_by(Notification.created_at.desc(), Notification.id.desc())
+    )
+    result = []
+    for notification in db.scalars(stmt).all():
+        gift = notification.comment.gift
+        if is_visible(viewer, gift) and can_see_secrets(viewer, gift):
+            result.append(notification)
+    return result
+
+
+def unread_notification_count(db: Session, viewer: User) -> int:
+    return sum(1 for n in my_notifications(db, viewer) if n.read_at is None)
 
 
 def my_reservations(db: Session, viewer: User) -> list[tuple[User, list[GiftView], object]]:

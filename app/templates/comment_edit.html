@@ -1,6 +1,7 @@
 {% extends "base.html" %}
 {% from "macros.html" import icon, csrf %}
 {% block title %}Modifier mon message · Liste de Noël{% endblock %}
+{% block scripts %}<script src="/static/js/mentions.js" defer></script>{% endblock %}
 {% block content %}
 <a class="back-link" href="/cadeaux/{{ comment.gift_id }}/commentaires">{{ icon("back") }} Annuler</a>
 
@@ -10,7 +11,8 @@
   {% if error %}<p class="alert alert--error" role="alert">{{ error }}</p>{% endif %}
   <div class="field">
     <label for="content">Message</label>
-    <textarea id="content" name="content" rows="4" maxlength="1000" required>{{ content }}</textarea>
+    <textarea id="content" name="content" rows="4" maxlength="1000" required
+              data-mentions='{{ mention_names | tojson }}'>{{ content }}</textarea>
   </div>
   <div class="actions actions--end">
     <a class="btn btn--ghost" href="/cadeaux/{{ comment.gift_id }}/commentaires">Annuler</a>

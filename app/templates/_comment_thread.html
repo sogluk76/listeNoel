@@ -6,11 +6,11 @@
 <ol class="chat">
   {% for c in comments %}
   {% set mine = c.author_id == user.id %}
-  <li class="chat__msg {% if mine %}chat__msg--mine{% endif %}">
+  <li class="chat__msg {% if mine %}chat__msg--mine{% endif %}" id="c{{ c.id }}">
     {{ avatar(c.author, "sm") }}
     <div class="chat__bubble">
-      <p class="chat__meta"><strong>{{ c.author.first_name }}</strong> <time>{{ c.created_at | dt }}</time>{% if c.updated_at %} <span>(modifié)</span>{% endif %}</p>
-      <p class="chat__text">{{ c.content }}</p>
+      <p class="chat__meta">{% if not mine and c.author in mentionable %}<button type="button" class="chat__author" data-mention="{{ c.author.first_name }}" title="Mentionner {{ c.author.first_name }}">{{ c.author.first_name }}</button>{% else %}<strong>{{ c.author.first_name }}</strong>{% endif %} <time>{{ c.created_at | dt }}</time>{% if c.updated_at %} <span>(modifié)</span>{% endif %}</p>
+      <p class="chat__text">{{ c.content | mentions(mentionable) }}</p>
       {% if mine %}
       <p class="chat__actions">
         <a href="/commentaires/{{ c.id }}/modifier">Modifier</a>

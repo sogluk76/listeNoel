@@ -71,6 +71,7 @@ Chaque règle a un identifiant `RG-xx` cité dans les user stories et dans les t
 | Icône commentaires + badge | ❌ | ✅ |
 | Écran commentaires (y compris par URL directe) | ❌ 403 | ✅ |
 | Tri par statut | ❌ | ✅ |
+| Mention `@D` dans le fil et notification associée (RG-43) | ❌ jamais notifié | ✅ pour les autres membres |
 
 > ⚠️ La règle s'applique **côté serveur** (requêtes et contrôles d'accès), pas seulement à l'affichage. Une URL tapée à la main ne doit rien révéler. Elle doit être couverte par des tests dédiés.
 
@@ -78,7 +79,7 @@ Chaque règle a un identifiant `RG-xx` cité dans les user stories et dans les t
 
 - **RG-31** Les commentaires sont rattachés à **un cadeau**. On y accède depuis l'icône commentaire du cadeau. Le badge affiche le nombre de commentaires.
 - **RG-32** Un message affiche l'auteur, sa photo (ou le placeholder), la date et l'heure (`07/12/2025 17:00`) et le texte. Mes messages sont alignés à droite, ceux des autres à gauche. Ordre chronologique, du plus ancien au plus récent.
-- **RG-33** Les messages vides ou composés uniquement d'espaces sont refusés. Les emojis sont acceptés. Longueur maximale : 1 000 caractères.
+- **RG-33** Les messages vides ou composés uniquement d'espaces sont refusés. Les emojis sont acceptés. Longueur maximale : 1 000 caractères. Sur ordinateur, **Entrée envoie** le message et **Maj+Entrée** va à la ligne ; sur téléphone et tablette, Entrée va à la ligne et on envoie avec le bouton.
 - **RG-34** Le fil se rafraîchit automatiquement toutes les **20 secondes**.
 - **RG-35** Chacun peut **modifier** et **supprimer** ses propres messages. Un message modifié affiche « (modifié) ». La modification se fait sur une page dédiée (PO-10).
 
@@ -93,12 +94,20 @@ Chaque règle a un identifiant `RG-xx` cité dans les user stories et dans les t
 - **RG-39** L'admin clôture l'année N : les cadeaux **achetés** et les cadeaux **retirés** sont archivés (année N), avec leurs commentaires. Les autres cadeaux restent dans les listes.
 - **RG-40** Les cadeaux archivés n'apparaissent plus nulle part dans l'application membre et ne comptent plus dans les compteurs.
 
+## Mentions et notifications
+
+- **RG-42** Dans un commentaire, `@` suivi du prénom d'un membre actif est une **mention**. Le prénom est reconnu sans tenir compte de la casse ni des accents, et doit être complet (`@Bobby` ne mentionne pas Bob). Le `@` ne doit pas suivre une lettre ou un chiffre (une adresse mail n'est pas une mention). Chaque membre mentionné reçoit **une** notification par message, sauf l'auteur du message.
+- **RG-43** Le **destinataire du cadeau n'est jamais notifié** et ne peut pas être mentionné dans le fil de son propre cadeau : son prénom y reste du texte simple. Le commentaire est accepté normalement. C'est une conséquence de RG-30 : une notification lui révélerait qu'on parle d'un de ses cadeaux.
+- **RG-44** Les notifications suivent le message : modifier un message ajoute ou retire les notifications selon ses mentions, supprimer un message (ou son cadeau) les supprime.
+- **RG-45** Une **cloche** dans l'en-tête des pages membre affiche le nombre de notifications non lues. La page « Notifications » les liste de la plus récente à la plus ancienne, et **les marque toutes comme lues à l'ouverture**. Ouvrir la page de commentaires d'un cadeau marque aussi comme lues les notifications de ce fil (et seulement celles-là) ; le rafraîchissement automatique du fil ne marque rien. Une notification n'est affichée et comptée que si le membre a encore le droit de voir le fil concerné (RG-30, RG-11, RG-40). Les notifications n'existent que sur le site : pas de mail, pas de notification sur le téléphone. L'admin n'en a pas.
+
 ## Suppression d'un compte
 
 - **RG-41** L'admin peut supprimer **définitivement** le compte d'un membre, après confirmation. Tout ce qui s'y rattache est supprimé avec lui :
   - sa liste (les cadeaux dont il est destinataire, y compris les suggestions des autres, avec leurs réservations et commentaires) ;
   - les cadeaux qu'il a créés pour d'autres (ses suggestions), avec leurs réservations et commentaires ;
   - ses réservations et ses commentaires sur les cadeaux des autres ;
+  - ses notifications, et celles créées par ses commentaires ;
   - sa photo et les images des cadeaux supprimés ;
   - les cadeaux archivés qui le concernent.
 

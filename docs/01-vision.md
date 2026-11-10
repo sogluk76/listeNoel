@@ -40,9 +40,10 @@ Toute fonctionnalité est conçue et testée en priorité contre ce principe.
 - Suppression « douce » d'un cadeau déjà réservé ou acheté
 - Rafraîchissement automatique des commentaires
 - Photo de remplacement (placeholder) quand un membre n'a pas de photo
+- Mentions `@Prénom` dans les commentaires, avec une cloche de notifications sur le site
 
 ### Hors périmètre
 - Reprise des données Power Apps : les comptes seront recréés à la main par l'admin, les listes repartent de zéro
-- Notifications (mail, push)
+- Notifications par mail ou sur le téléphone (push) : les notifications restent sur le site
 - Plusieurs familles ou groupes séparés
 - Plusieurs événements (anniversaires…) : uniquement Noël, avec archivage annuel

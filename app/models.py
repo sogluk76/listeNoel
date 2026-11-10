@@ -13,6 +13,7 @@ from sqlalchemy import (
     Numeric,
     String,
     Text,
+    UniqueConstraint,
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -154,3 +155,27 @@ class Comment(Base):
 
     gift: Mapped[Gift] = relationship(back_populates="comments")
     author: Mapped[User] = relationship()
+    notifications: Mapped[list["Notification"]] = relationship(
+        back_populates="comment", cascade="all, delete-orphan"
+    )
+
+
+class Notification(Base):
+    """Mention « @Prénom » dans un commentaire, à signaler au membre mentionné (RG-42)."""
+
+    __tablename__ = "notifications"
+    __table_args__ = (
+        UniqueConstraint("user_id", "comment_id", name="uq_notifications_user_comment"),
+        Index("ix_notifications_user", "user_id", "read_at"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False)
+    comment_id: Mapped[int] = mapped_column(
+        ForeignKey("comments.id", ondelete="CASCADE"), nullable=False
+    )
+    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=utcnow)
+    read_at: Mapped[datetime | None] = mapped_column(DateTime)
+
+    user: Mapped[User] = relationship()
+    comment: Mapped[Comment] = relationship(back_populates="notifications")
