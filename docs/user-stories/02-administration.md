@@ -75,6 +75,27 @@ Depuis la fiche d'un membre, l'admin peut saisir un nouveau mot de passe (avec c
 
 ---
 
+## US-26 — Supprimer un compte membre
+
+**En tant qu'** admin
+**Je veux** supprimer définitivement le compte d'un membre
+**Afin de** retirer une personne qui ne participe plus, ou un compte créé par erreur
+
+### Analyse fonctionnelle
+
+Depuis la fiche d'un membre, une section « Supprimer le compte » explique ce qui sera supprimé. L'admin déplie « Supprimer ce compte » puis confirme avec « Oui, supprimer <prénom> ». La suppression emporte tout ce qui se rattache au membre (RG-41). Elle est irréversible : pour une absence temporaire, on désactive le compte (US-06).
+
+### Critères d'acceptation
+- Après confirmation, le compte, sa liste, ses suggestions, ses réservations et ses commentaires sont supprimés de la base.
+- Sa photo et les images des cadeaux supprimés sont supprimées du disque.
+- Un cadeau qu'il avait marqué « acheté » n'est plus acheté ; les réservations et commentaires des autres membres sur les cadeaux restants sont intacts.
+- Le membre supprimé n'apparaît plus nulle part et sa session en cours est refusée à la requête suivante.
+- Sans confirmation, rien n'est supprimé.
+- Le compte admin ne peut pas être supprimé, et seul l'admin peut supprimer un compte.
+- La fiche n'affiche ni commentaires, ni réservations, ni statut d'achat.
+
+---
+
 ## US-08 — Supprimer un cadeau (admin)
 
 **En tant qu'** admin

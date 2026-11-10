@@ -201,6 +201,25 @@ def unlock_member(
     return redirect(f"/admin/membres/{member.id}")
 
 
+@router.post("/membres/{member_id}/supprimer")
+def delete_member(
+    request: Request,
+    member_id: int,
+    confirm: str = Form(""),
+    admin: User = Depends(current_admin),
+    db: Session = Depends(get_db),
+):
+    """US-26 : suppression définitive d'un compte membre et de toute sa trace (RG-41)."""
+    member = _get_member(db, member_id)
+    if not confirm:
+        flash(request, "Suppression non confirmée : rien n'a été supprimé.", "error")
+        return redirect(f"/admin/membres/{member.id}")
+    name = member.first_name
+    admin_service.delete_member(db, member)
+    flash(request, f"Compte de {name} supprimé définitivement.")
+    return redirect("/admin")
+
+
 # --- Cadeaux (US-08) ---------------------------------------------------------
 
 

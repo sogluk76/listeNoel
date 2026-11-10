@@ -92,3 +92,14 @@ Chaque règle a un identifiant `RG-xx` cité dans les user stories et dans les t
 
 - **RG-39** L'admin clôture l'année N : les cadeaux **achetés** et les cadeaux **retirés** sont archivés (année N), avec leurs commentaires. Les autres cadeaux restent dans les listes.
 - **RG-40** Les cadeaux archivés n'apparaissent plus nulle part dans l'application membre et ne comptent plus dans les compteurs.
+
+## Suppression d'un compte
+
+- **RG-41** L'admin peut supprimer **définitivement** le compte d'un membre, après confirmation. Tout ce qui s'y rattache est supprimé avec lui :
+  - sa liste (les cadeaux dont il est destinataire, y compris les suggestions des autres, avec leurs réservations et commentaires) ;
+  - les cadeaux qu'il a créés pour d'autres (ses suggestions), avec leurs réservations et commentaires ;
+  - ses réservations et ses commentaires sur les cadeaux des autres ;
+  - sa photo et les images des cadeaux supprimés ;
+  - les cadeaux archivés qui le concernent.
+
+  Un cadeau qu'il avait marqué « acheté » redevient « réservé » (s'il reste des réservants) ou disponible. Le compte admin ne peut pas être supprimé depuis le panel. La fiche du membre n'affiche aucun détail sur ce qui sera supprimé (RG-23). Pour une absence temporaire, la désactivation (RG-11) reste la bonne option.

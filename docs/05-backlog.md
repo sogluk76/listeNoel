@@ -25,6 +25,7 @@ Les lots 0 à 5 ont été livrés en une seule fois le 10/11/2026 (cf. journal).
 | ✅ | US-01 | Se connecter en tant que membre |
 | ✅ | US-03 | Blocage après 5 échecs |
 | ✅ | US-02 | Se déconnecter |
+| ✅ | US-26 | Supprimer un compte membre |
 
 ## Lot 2 — Listes de cadeaux (cœur de l'appli)
 | | US | Titre |

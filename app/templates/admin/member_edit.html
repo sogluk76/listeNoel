@@ -66,4 +66,20 @@
   </div>
 </form>
 {% endif %}
+
+<section class="card card--form stack">
+  <h2>Supprimer le compte</h2>
+  <p class="muted">Supprime définitivement {{ member.first_name }} et tout ce qui s'y rattache : sa liste de cadeaux, les idées proposées pour les autres, ses réservations et ses commentaires. Pour une absence temporaire, décoche plutôt « Compte actif ».</p>
+  <details class="confirm">
+    <summary class="link-btn link-btn--danger">Supprimer ce compte</summary>
+    <form method="post" action="/admin/membres/{{ member.id }}/supprimer" class="confirm__box">
+      {{ csrf(csrf_token) }}
+      <input type="hidden" name="confirm" value="1">
+      <p>Cette action est irréversible.</p>
+      <div class="actions">
+        <button class="btn btn--danger-solid" type="submit">Oui, supprimer {{ member.first_name }}</button>
+      </div>
+    </form>
+  </details>
+</section>
 {% endblock %}

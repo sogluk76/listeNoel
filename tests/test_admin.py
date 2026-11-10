@@ -115,6 +115,87 @@ def test_us07_reinitialiser_et_debloquer(login, anonymous, db, admin, alice):
     assert new.status_code == 303  # la réinitialisation lève aussi le blocage
 
 
+def _fichier_media(relative: str) -> str:
+    target = settings.media_dir / relative
+    target.parent.mkdir(parents=True, exist_ok=True)
+    target.write_bytes(png_bytes())
+    return relative
+
+
+def test_us26_supprimer_un_compte_et_toute_sa_trace(
+    login, anonymous, db, admin, alice, bob, chloe, make_gift
+):
+    """RG-41 : le compte disparaît avec sa liste, ses suggestions, réservations et commentaires."""
+    alice.photo_path = _fichier_media("avatars/alice-us26.webp")
+    sa_liste = make_gift(alice, alice, "Vélo-d-Alice", image_path=_fichier_media("gifts/us26.webp"))
+    sa_liste.reservations.append(Reservation(user_id=bob.id))
+    sa_liste.comments.append(Comment(author_id=bob.id, content="Bob en parle"))
+    suggestion_pour_alice = make_gift(bob, alice, "Idée-de-Bob-pour-Alice")
+    suggestion_d_alice = make_gift(alice, bob, "Idée-d-Alice-pour-Bob")
+    suggestion_d_alice.reservations.append(Reservation(user_id=chloe.id))
+    archive = make_gift(alice, alice, "Archive-d-Alice", archived_year=2025)
+    cadeau_de_bob = make_gift(bob, bob, "Livre-de-Bob")
+    cadeau_de_bob.reservations.append(Reservation(user_id=alice.id))
+    cadeau_de_bob.reservations.append(Reservation(user_id=chloe.id))
+    cadeau_de_bob.comments.append(Comment(author_id=alice.id, content="Alice en parle"))
+    cadeau_de_bob.comments.append(Comment(author_id=chloe.id, content="Chloé en parle"))
+    cadeau_de_bob.purchased_by_id = alice.id
+    cadeau_de_bob.purchased_at = utcnow()
+    db.commit()
+    alice_id, bob_gift_id = alice.id, cadeau_de_bob.id
+    supprimes = [sa_liste.id, suggestion_pour_alice.id, suggestion_d_alice.id, archive.id]
+    alice_client = login(alice)
+    client = login(admin)
+
+    page = client.get(f"/admin/membres/{alice_id}").text
+    assert "Supprimer ce compte" in page
+    assert "Bob en parle" not in page and "Réservé" not in page  # RG-23 : aucun secret côté admin
+
+    response = client.post(f"/admin/membres/{alice_id}/supprimer", data={"confirm": "1"})
+    assert response.status_code == 303 and response.headers["location"] == "/admin"
+    db.expire_all()
+
+    assert db.get(User, alice_id) is None
+    for gift_id in supprimes:
+        assert db.get(Gift, gift_id) is None, gift_id
+    assert not (settings.media_dir / "avatars/alice-us26.webp").exists()
+    assert not (settings.media_dir / "gifts/us26.webp").exists()
+
+    # Ce que les autres ont fait ailleurs est intact, sans trace d'Alice
+    reste = db.get(Gift, bob_gift_id)
+    assert [r.user_id for r in reste.reservations] == [chloe.id]
+    assert [c.content for c in reste.comments] == ["Chloé en parle"]
+    assert reste.purchased_by_id is None and reste.purchased_at is None
+    assert db.scalars(select(Reservation).where(Reservation.user_id == alice_id)).all() == []
+    assert db.scalars(select(Comment).where(Comment.author_id == alice_id)).all() == []
+    assert db.get(User, bob.id) is not None and db.get(User, chloe.id) is not None
+
+    # Alice ne peut plus rien faire : session refusée, absente des listes
+    assert alice_client.get("/").headers["location"] == "/login"
+    assert ">Alice<" not in anonymous.get("/login").text
+    assert "Alice" not in client.get("/admin").text.replace("Alice supprimé", "")
+    html = login(chloe).get(f"/personnes/{bob.id}").text
+    assert "Livre-de-Bob" in html and "Idée-d-Alice-pour-Bob" not in html
+
+
+def test_us26_sans_confirmation_rien_n_est_supprime(login, db, admin, alice, make_gift):
+    gift = make_gift(alice, alice, "Vélo")
+    client = login(admin)
+    response = client.post(f"/admin/membres/{alice.id}/supprimer")
+    assert response.headers["location"] == f"/admin/membres/{alice.id}"
+    db.expire_all()
+    assert db.get(User, alice.id) is not None and db.get(Gift, gift.id) is not None
+
+
+def test_us26_reserve_a_l_admin_et_admin_non_supprimable(login, anonymous, db, admin, alice, bob):
+    data = {"confirm": "1"}
+    assert login(admin).post(f"/admin/membres/{admin.id}/supprimer", data=data).status_code == 404
+    assert login(bob).post(f"/admin/membres/{alice.id}/supprimer", data=data).status_code == 403
+    assert anonymous.post(f"/admin/membres/{alice.id}/supprimer", data=data).status_code != 200
+    db.expire_all()
+    assert db.get(User, admin.id) is not None and db.get(User, alice.id) is not None
+
+
 def test_us08_liste_admin_sans_secrets_et_suppression(login, db, admin, alice, bob, make_gift):
     client = login(admin)
     client_png = login(bob)
