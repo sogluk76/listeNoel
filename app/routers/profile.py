@@ -1,42 +1,81 @@
+"""Profil : photo, mot de passe, mes réservations (US-23 à US-25)."""
+
 from fastapi import APIRouter, Depends, File, Form, Request, UploadFile
 from sqlalchemy.orm import Session
-from starlette.responses import RedirectResponse
 
 from app.db import get_db
-from app.security import current_member, get_csrf_token, verify_csrf
-from app.services.users import update_own_photo
-from app.templating import templates
+from app.errors import Invalid
+from app.models import User
+from app.security import current_member, flash, verify_password
+from app.services import images, visibility
+from app.services import users as users_service
+from app.web import redirect, render
 
 router = APIRouter()
 
 
-@router.get("/profil")
-def profil(request: Request, membre=Depends(current_member)):
-    return templates.TemplateResponse(
+def _page(request: Request, db: Session, user: User, error: str | None = None, status_code=200):
+    return render(
         request,
         "profile.html",
-        {"csrf_token": get_csrf_token(request), "membre": membre, "erreur_photo": None},
+        {"groups": visibility.my_reservations(db, user), "password_error": error},
+        user=user,
+        status_code=status_code,
     )
 
 
-@router.post("/profil/photo", dependencies=[Depends(verify_csrf)])
-async def changer_photo(
+@router.get("/profil")
+def profile(request: Request, user: User = Depends(current_member), db: Session = Depends(get_db)):
+    return _page(request, db, user)
+
+
+@router.post("/profil/photo")
+def change_photo(
     request: Request,
-    remove_photo: str = Form("non"),
     photo: UploadFile | None = File(None),
-    membre=Depends(current_member),
+    user: User = Depends(current_member),
     db: Session = Depends(get_db),
 ):
-    """RG-36 (US-23)."""
-    photo_bytes = await photo.read() if photo is not None and photo.filename else None
-
+    if not images.has_file(photo):
+        flash(request, "Choisis d'abord une image.", "error")
+        return redirect("/profil")
     try:
-        update_own_photo(db, membre, photo=photo_bytes, remove_photo=(remove_photo == "oui"))
-    except ValueError as exc:
-        return templates.TemplateResponse(
-            request,
-            "profile.html",
-            {"csrf_token": get_csrf_token(request), "membre": membre, "erreur_photo": str(exc)},
-            status_code=400,
-        )
-    return RedirectResponse("/profil", status_code=303)
+        new_path = images.save_image(photo, "avatars", images.AVATAR_MAX_SIDE)
+    except Invalid as exc:
+        flash(request, exc.message, "error")
+        return redirect("/profil")
+    old_path, user.photo_path = user.photo_path, new_path
+    db.commit()
+    images.delete_image(old_path)
+    flash(request, "Photo mise à jour.")
+    return redirect("/profil")
+
+
+@router.post("/profil/photo/supprimer")
+def remove_photo(
+    request: Request, user: User = Depends(current_member), db: Session = Depends(get_db)
+):
+    old_path, user.photo_path = user.photo_path, None
+    db.commit()
+    images.delete_image(old_path)
+    flash(request, "Photo supprimée.")
+    return redirect("/profil")
+
+
+@router.post("/profil/mot-de-passe")
+def change_password(
+    request: Request,
+    current_password: str = Form(""),
+    new_password: str = Form(""),
+    confirmation: str = Form(""),
+    user: User = Depends(current_member),
+    db: Session = Depends(get_db),
+):
+    if not verify_password(user.password_hash, current_password):
+        return _page(request, db, user, "Le mot de passe actuel est incorrect.", 422)
+    try:
+        users_service.set_password(db, user, new_password, confirmation)
+    except Invalid as exc:
+        return _page(request, db, user, exc.message, 422)
+    flash(request, "Mot de passe modifié.")
+    return redirect("/profil")

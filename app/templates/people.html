@@ -1,25 +1,24 @@
 {% extends "base.html" %}
-
-{% block title %}Liste des personnes{% endblock %}
-
+{% from "macros.html" import avatar, icon %}
 {% block content %}
-<h2>Liste des personnes</h2>
-<a href="/cadeaux/nouveau">+ Ajouter un cadeau</a>
+<div class="page-head">
+  <div>
+    <h1>La famille</h1>
+    <p class="muted">Choisis une personne pour voir sa liste.</p>
+  </div>
+  <a class="btn btn--primary" href="/cadeaux/nouveau">{{ icon("plus") }} Ajouter un cadeau</a>
+</div>
 
-<ul>
-    {% for membre in membres %}
-    <li>
-        <a href="/personnes/{{ membre.id }}">
-            {% if membre.photo_path %}
-            <img src="/media/{{ membre.photo_path }}" alt="" width="40" height="40">
-            {% else %}
-            {{ membre.first_name[0] }}
-            {% endif %}
-            {{ membre.first_name }} ({{ compteurs[membre.id] }})
-        </a>
-    </li>
-    {% endfor %}
+<ul class="list">
+  {% for person, count in people %}
+  <li>
+    <a class="person-row {% if person.id == user.id %}person-row--me{% endif %}" href="/personnes/{{ person.id }}">
+      {{ avatar(person, "md") }}
+      <span class="person-row__name">{{ person.first_name }}{% if person.id == user.id %} <span class="muted">(moi)</span>{% endif %}</span>
+      <span class="count" title="Nombre de cadeaux">{{ count }}</span>
+      {{ icon("chevron") }}
+    </a>
+  </li>
+  {% endfor %}
 </ul>
-
-<a href="/profil">Mon profil</a>
 {% endblock %}

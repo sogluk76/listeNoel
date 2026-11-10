@@ -1,0 +1,2 @@
+{% from "macros.html" import avatar %}
+{% if selected %}{{ avatar(selected, "xl") }}{% else %}<span class="avatar avatar--xl avatar--empty" aria-hidden="true">?</span>{% endif %}

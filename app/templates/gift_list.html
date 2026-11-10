@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+{% from "macros.html" import avatar, icon %}
+{% block title %}{{ person.first_name }} · Liste de Noël{% endblock %}
+{% block content %}
+<a class="back-link" href="/">{{ icon("back") }} La famille</a>
+
+<div class="page-head">
+  <div class="page-head__who">
+    {{ avatar(person, "lg") }}
+    <div>
+      <h1>{{ person.first_name }}</h1>
+      <p class="muted">{% if is_me %}Ma liste{% else %}Sa liste et les idées pour {{ person.first_name }}{% endif %}</p>
+    </div>
+  </div>
+  {% if is_me %}
+  <a class="btn btn--primary" href="/cadeaux/nouveau">{{ icon("plus") }} Ajouter un cadeau</a>
+  {% else %}
+  <a class="btn btn--secondary" href="/cadeaux/nouveau?pour={{ person.id }}">{{ icon("plus") }} Suggérer une idée</a>
+  {% endif %}
+</div>
+
+<form class="toolbar" method="get" action="/personnes/{{ person.id }}"
+      hx-get="/personnes/{{ person.id }}" hx-target="#gifts" hx-trigger="input delay:300ms, change" hx-push-url="true">
+  <label class="search">
+    <span class="sr-only">Rechercher un cadeau</span>
+    {{ icon("search") }}
+    <input type="search" name="q" value="{{ q }}" placeholder="Rechercher un cadeau" autocomplete="off">
+  </label>
+  <label class="toolbar__select">
+    <span class="sr-only">Trier par</span>
+    <select name="tri">
+      <option value="nom" {% if tri == "nom" %}selected{% endif %}>Nom</option>
+      <option value="prix" {% if tri == "prix" %}selected{% endif %}>Prix</option>
+      {% if not is_me %}<option value="statut" {% if tri == "statut" %}selected{% endif %}>Statut</option>{% endif %}
+    </select>
+  </label>
+  <label class="toolbar__select">
+    <span class="sr-only">Sens du tri</span>
+    <select name="sens">
+      <option value="asc" {% if sens == "asc" %}selected{% endif %}>Croissant</option>
+      <option value="desc" {% if sens == "desc" %}selected{% endif %}>Décroissant</option>
+    </select>
+  </label>
+  <noscript><button class="btn btn--secondary" type="submit">Filtrer</button></noscript>
+</form>
+
+<div id="gifts">{% include "_gift_items.html" %}</div>
+{% endblock %}

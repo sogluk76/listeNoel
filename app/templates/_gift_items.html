@@ -1,0 +1,45 @@
+{% from "macros.html" import icon, pill %}
+{% if not views %}
+<div class="empty">
+  {{ icon("gift") }}
+  {% if q %}
+  <p>Aucun cadeau ne correspond à « {{ q }} ».</p>
+  {% elif is_me %}
+  <p>Ta liste est vide pour l'instant.</p>
+  <p><a class="btn btn--primary" href="/cadeaux/nouveau">Ajouter mon premier cadeau</a></p>
+  {% else %}
+  <p>{{ person.first_name }} n'a encore rien demandé.</p>
+  <p><a class="btn btn--secondary" href="/cadeaux/nouveau?pour={{ person.id }}">Suggérer une idée</a></p>
+  {% endif %}
+</div>
+{% else %}
+<ul class="gift-grid">
+  {% for v in views %}
+  <li class="gift-card">
+    <a class="gift-card__main" href="/cadeaux/{{ v.gift.id }}">
+      {% if v.gift.image_path %}
+      <img class="gift-card__image" src="/media/{{ v.gift.image_path }}" alt="" loading="lazy">
+      {% else %}
+      <span class="gift-card__image gift-card__image--empty">{{ icon("gift") }}</span>
+      {% endif %}
+      <span class="gift-card__body">
+        <span class="gift-card__name">{{ v.gift.name }}</span>
+        {% if v.gift.price is not none %}<span class="gift-card__price">{{ v.gift.price | price }}</span>{% endif %}
+        {% if v.show_secrets %}
+        <span class="gift-card__meta">
+          {{ pill(v.status) }}
+          {% if v.suggested_by %}<span class="muted">Suggéré par {{ v.suggested_by.first_name }}</span>{% endif %}
+        </span>
+        {% endif %}
+      </span>
+    </a>
+    {% if v.show_secrets %}
+    <a class="gift-card__comments" href="/cadeaux/{{ v.gift.id }}/commentaires"
+       aria-label="{{ v.comment_count }} commentaire{{ 's' if v.comment_count > 1 else '' }}">
+      {{ icon("chat") }}{% if v.comment_count %}<span class="badge">{{ v.comment_count }}</span>{% endif %}
+    </a>
+    {% endif %}
+  </li>
+  {% endfor %}
+</ul>
+{% endif %}

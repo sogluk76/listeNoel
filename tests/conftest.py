@@ -1,144 +1,139 @@
-import io
-import json
+"""Fixtures : base SQLite en mémoire, membres Alice / Bob / Chloé et un admin."""
+
+import os
 import re
-from base64 import b64encode
-from datetime import UTC, datetime
+import tempfile
 
-import itsdangerous
-import pytest
-from fastapi.testclient import TestClient
-from PIL import Image
-from sqlalchemy.orm import Session
+os.environ["NOEL_TESTING"] = "1"
+os.environ["NOEL_SECRET_KEY"] = "cle-de-test"
+os.environ["NOEL_DATABASE_URL"] = "sqlite://"
+os.environ["NOEL_MEDIA_DIR"] = tempfile.mkdtemp(prefix="noel-media-")
 
-from app.config import settings
-from app.db import create_db_engine, get_db
-from app.main import app
-from app.models import Base, Gift, User
-from app.security import hash_password
+import pytest  # noqa: E402
+from fastapi.testclient import TestClient  # noqa: E402
+from sqlalchemy import create_engine  # noqa: E402
+from sqlalchemy.orm import sessionmaker  # noqa: E402
+from sqlalchemy.pool import StaticPool  # noqa: E402
 
-FIXTURE_PASSWORD = "password123"
+from app.db import Base, get_db  # noqa: E402
+from app.main import app  # noqa: E402
+from app.models import ROLE_ADMIN, ROLE_MEMBER, Gift, User  # noqa: E402
+from app.security import hash_password  # noqa: E402
 
-
-@pytest.fixture(autouse=True)
-def _media_dir_isole(tmp_path, monkeypatch):
-    """Aucun test ne doit écrire dans le vrai dossier media/ du projet."""
-    monkeypatch.setattr(settings, "media_dir", tmp_path)
+PASSWORD = "motdepasse1"
+_HASH = hash_password(PASSWORD)  # haché une seule fois : Argon2 est volontairement lent
+_CSRF_RE = re.compile(r'name="csrf-token" content="([^"]+)"')
 
 
 @pytest.fixture
-def db_session():
-    engine = create_db_engine("sqlite:///:memory:")
+def db():
+    engine = create_engine(
+        "sqlite://", connect_args={"check_same_thread": False}, poolclass=StaticPool
+    )
     Base.metadata.create_all(engine)
-    with Session(engine) as session:
-        yield session
+    factory = sessionmaker(bind=engine, expire_on_commit=False)
+    session = factory()
+
+    def override():
+        request_session = factory()
+        try:
+            yield request_session
+        finally:
+            request_session.close()
+
+    app.dependency_overrides[get_db] = override
+    yield session
+    session.close()
+    app.dependency_overrides.clear()
+    engine.dispose()
+
+
+def _user(db, name: str, role: str = ROLE_MEMBER) -> User:
+    user = User(first_name=name, password_hash=_HASH, role=role)
+    db.add(user)
+    db.commit()
+    return user
 
 
 @pytest.fixture
-def client(db_session):
-    def _override_get_db():
-        yield db_session
-
-    app.dependency_overrides[get_db] = _override_get_db
-    try:
-        yield TestClient(app)
-    finally:
-        app.dependency_overrides.pop(get_db, None)
+def alice(db):
+    return _user(db, "Alice")
 
 
 @pytest.fixture
-def login_as():
-    """Pose directement un cookie de session valide, sans passer par un formulaire de login."""
-
-    def _login_as(test_client: TestClient, user: User) -> None:
-        signer = itsdangerous.TimestampSigner(settings.secret_key)
-        payload = b64encode(json.dumps({"user_id": user.id}).encode("utf-8"))
-        test_client.cookies.set(
-            "session", signer.sign(payload).decode("utf-8"), domain="testserver.local"
-        )
-
-    return _login_as
+def bob(db):
+    return _user(db, "Bob")
 
 
 @pytest.fixture
-def extract_csrf_token():
-    """Lit le jeton CSRF posé par `base.html` dans `hx-headers`, pour soumettre un formulaire."""
-
-    def _extract(html: str) -> str:
-        match = re.search(r'X-CSRF-Token":\s*"([^"]+)"', html)
-        assert match, "jeton CSRF introuvable dans la page"
-        return match.group(1)
-
-    return _extract
+def chloe(db):
+    return _user(db, "Chloé")
 
 
 @pytest.fixture
-def make_image_bytes():
-    def _make(fmt: str = "PNG", size: tuple[int, int] = (100, 100)) -> bytes:
-        buffer = io.BytesIO()
-        Image.new("RGB", size, color="red").save(buffer, format=fmt)
-        return buffer.getvalue()
+def admin(db):
+    return _user(db, "admin", ROLE_ADMIN)
+
+
+def csrf_of(client: TestClient, path: str = "/login") -> str:
+    match = _CSRF_RE.search(client.get(path).text)
+    assert match, f"jeton CSRF introuvable sur {path}"
+    return match.group(1)
+
+
+def use_csrf(client: TestClient, path: str = "/login") -> None:
+    client.headers["X-CSRF-Token"] = csrf_of(client, path)
+
+
+@pytest.fixture
+def anonymous(db):
+    """Client sans session, avec un jeton CSRF valide."""
+    client = TestClient(app, follow_redirects=False)
+    use_csrf(client)
+    return client
+
+
+@pytest.fixture
+def login(db):
+    """Fabrique de clients connectés : login(alice) ou login(admin)."""
+
+    def _login(user: User, password: str = PASSWORD) -> TestClient:
+        client = TestClient(app, follow_redirects=False)
+        if user.role == ROLE_ADMIN:
+            use_csrf(client, "/admin/login")
+            response = client.post(
+                "/admin/login", data={"name": user.first_name, "password": password}
+            )
+            assert response.status_code == 303, response.text
+            use_csrf(client, "/admin")
+        else:
+            use_csrf(client)
+            response = client.post("/login", data={"user_id": user.id, "password": password})
+            assert response.status_code == 303, response.text
+            use_csrf(client, "/")
+        return client
+
+    return _login
+
+
+@pytest.fixture
+def make_gift(db):
+    """Crée un cadeau directement en base : make_gift(author, recipient, "Vélo", price=...)."""
+
+    def _make(author: User, recipient: User | None = None, name: str = "Cadeau", **fields) -> Gift:
+        gift = Gift(name=name, author_id=author.id, recipient_id=(recipient or author).id, **fields)
+        db.add(gift)
+        db.commit()
+        return gift
 
     return _make
 
 
-def _create_member(session, first_name):
-    user = User(first_name=first_name, password_hash=hash_password(FIXTURE_PASSWORD))
-    session.add(user)
-    session.commit()
-    return user
+def png_bytes(size: tuple[int, int] = (20, 20)) -> bytes:
+    from io import BytesIO
 
+    from PIL import Image
 
-@pytest.fixture
-def alice(db_session):
-    return _create_member(db_session, "Alice")
-
-
-@pytest.fixture
-def bob(db_session):
-    return _create_member(db_session, "Bob")
-
-
-@pytest.fixture
-def chloe(db_session):
-    return _create_member(db_session, "Chloé")
-
-
-@pytest.fixture
-def admin(db_session):
-    user = User(first_name="Admin", password_hash=hash_password(FIXTURE_PASSWORD), role="admin")
-    db_session.add(user)
-    db_session.commit()
-    return user
-
-
-@pytest.fixture
-def create_gift(db_session):
-    """Factory de cadeau pour les tests : `create_gift(auteur)` (perso) ou
-    `create_gift(auteur, recipient=quelquun)` (suggestion)."""
-
-    def _create(
-        author,
-        recipient=None,
-        *,
-        name="Cadeau",
-        price=None,
-        url=None,
-        removed=False,
-        archived_year=None,
-        purchased_by=None,
-    ):
-        gift = Gift(
-            name=name,
-            price=price,
-            url=url,
-            recipient_id=(recipient or author).id,
-            author_id=author.id,
-            removed_at=datetime.now(UTC).replace(tzinfo=None) if removed else None,
-            archived_year=archived_year,
-            purchased_by_id=purchased_by.id if purchased_by else None,
-        )
-        db_session.add(gift)
-        db_session.commit()
-        return gift
-
-    return _create
+    buffer = BytesIO()
+    Image.new("RGB", size, (30, 77, 58)).save(buffer, "PNG")
+    return buffer.getvalue()

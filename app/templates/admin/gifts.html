@@ -1,0 +1,54 @@
+{% extends "admin/base.html" %}
+{% from "macros.html" import csrf %}
+{% set section = "gifts" %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>Cadeaux</h1>
+    <p class="muted">{{ gifts | length }} cadeau{{ "x" if gifts | length > 1 else "" }} non archivé{{ "s" if gifts | length > 1 else "" }}</p>
+  </div>
+  <form class="toolbar toolbar--inline" method="get" action="/admin/cadeaux">
+    <label class="toolbar__select">
+      <span class="sr-only">Filtrer par destinataire</span>
+      <select name="pour">
+        <option value="">Tous les destinataires</option>
+        {% for m in members %}
+        <option value="{{ m.id }}" {% if recipient_id == m.id %}selected{% endif %}>{{ m.first_name }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    <button class="btn btn--secondary" type="submit">Filtrer</button>
+  </form>
+</div>
+
+{% if not gifts %}
+<p class="card muted">Aucun cadeau.</p>
+{% else %}
+<div class="card table-wrap">
+  <table class="table">
+    <thead><tr><th>Cadeau</th><th>Pour</th><th>Ajouté par</th><th>Ajouté le</th><th><span class="sr-only">Actions</span></th></tr></thead>
+    <tbody>
+      {% for g in gifts %}
+      <tr>
+        <td>{{ g.name }}</td>
+        <td>{{ g.recipient.first_name }}</td>
+        <td>{{ g.author.first_name }}</td>
+        <td>{{ g.created_at | d }}</td>
+        <td class="text-right">
+          <details class="confirm confirm--right">
+            <summary class="link-btn link-btn--danger">Supprimer</summary>
+            <form method="post" action="/admin/cadeaux/{{ g.id }}/supprimer" class="confirm__box">
+              {{ csrf(csrf_token) }}
+              <input type="hidden" name="confirm" value="1">
+              <p>Suppression définitive.</p>
+              <button class="btn btn--danger-solid" type="submit">Oui, supprimer</button>
+            </form>
+          </details>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endif %}
+{% endblock %}

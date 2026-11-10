@@ -1,488 +1,220 @@
+"""US-11 à US-17 : ajout, suggestion, recherche, tri, détail, modification, suppression."""
+
 from decimal import Decimal
 
+import pytest
+from sqlalchemy import select
+
+from app.config import settings
 from app.models import Comment, Gift, Reservation
+from app.services.gifts import parse_price
+from tests.conftest import png_bytes
 
 
-def test_us11_formulaire_affiche_pour_membre_connecte(client, alice, login_as):
-    login_as(client, alice)
+def _gifts(db):
+    db.expire_all()
+    return db.scalars(select(Gift)).all()
 
-    response = client.get("/cadeaux/nouveau")
 
-    assert response.status_code == 200
-    assert "Ajouter un cadeau" in response.text
+def test_us11_cadeau_avec_seulement_un_nom(login, db, alice):
+    response = login(alice).post("/cadeaux", data={"name": "  Vélo  "})
+    assert response.status_code == 303 and response.headers["location"] == f"/personnes/{alice.id}"
+    (gift,) = _gifts(db)
+    assert gift.name == "Vélo" and gift.author_id == gift.recipient_id == alice.id
+    assert gift.price is None and gift.url is None and gift.image_path is None
 
 
-def test_us11_sans_session_redirige_vers_login(client):
-    response = client.get("/cadeaux/nouveau", follow_redirects=False)
+@pytest.mark.parametrize("name", ["", "   "])
+def test_us11_nom_vide_refuse(login, db, alice, name):
+    response = login(alice).post("/cadeaux", data={"name": name})
+    assert response.status_code == 422 and "obligatoire" in response.text
+    assert _gifts(db) == []
 
-    assert response.status_code == 303
-    assert response.headers["location"] == "/login"
 
+@pytest.mark.parametrize("price", ["-5", "12,345", "abc", "1e3x"])
+def test_us11_prix_invalide_refuse(login, db, alice, price):
+    response = login(alice).post("/cadeaux", data={"name": "Vélo", "price": price})
+    assert response.status_code == 422
+    assert _gifts(db) == []
 
-def test_us11_creation_minimale_redirige(client, alice, login_as, extract_csrf_token, db_session):
-    login_as(client, alice)
-    page = client.get("/cadeaux/nouveau")
-    token = extract_csrf_token(page.text)
 
-    response = client.post(
-        "/cadeaux/nouveau",
-        data={"name": "Vélo", "csrf_token": token},
-        follow_redirects=False,
-    )
+@pytest.mark.parametrize(
+    "raw, expected", [("39,99", "39.99"), ("39.9", "39.90"), ("40", "40.00"), ("39,99 €", "39.99")]
+)
+def test_us11_prix_virgule_ou_point(raw, expected):
+    assert parse_price(raw) == Decimal(expected)
 
-    assert response.status_code == 303
-    cadeau = db_session.query(Gift).filter_by(name="Vélo").one()
-    assert cadeau.author_id == alice.id
-    assert cadeau.recipient_id == alice.id
 
+@pytest.mark.parametrize("url", ["exemple.com", "ftp://exemple.com", "javascript:alert(1)"])
+def test_us11_lien_sans_http_refuse(login, db, alice, url):
+    response = login(alice).post("/cadeaux", data={"name": "Vélo", "url": url})
+    assert response.status_code == 422 and "http" in response.text
+    assert _gifts(db) == []
 
-def test_us11_nom_vide_affiche_erreur(client, alice, login_as, extract_csrf_token):
-    login_as(client, alice)
-    page = client.get("/cadeaux/nouveau")
-    token = extract_csrf_token(page.text)
 
-    response = client.post("/cadeaux/nouveau", data={"name": "   ", "csrf_token": token})
-
-    assert response.status_code == 400
-
-
-def test_us11_destinataire_forge_est_ignore(
-    client, alice, bob, login_as, extract_csrf_token, db_session
-):
-    login_as(client, alice)
-    page = client.get("/cadeaux/nouveau")
-    token = extract_csrf_token(page.text)
-
-    client.post(
-        "/cadeaux/nouveau",
-        data={"name": "Jeu", "recipient_id": str(bob.id), "csrf_token": token},
-    )
-
-    cadeau = db_session.query(Gift).filter_by(name="Jeu").one()
-    assert cadeau.recipient_id == alice.id
-
-
-def test_us13_personne_inexistante_404(client, alice, login_as):
-    login_as(client, alice)
-
-    response = client.get("/personnes/9999")
-
-    assert response.status_code == 404
-
-
-def test_us13_personne_desactivee_404(client, alice, bob, login_as, db_session):
-    bob.is_active = False
-    db_session.commit()
-    login_as(client, alice)
-
-    response = client.get(f"/personnes/{bob.id}")
-
-    assert response.status_code == 404
-
-
-def test_us13_admin_comme_personne_404(client, alice, admin, login_as):
-    login_as(client, alice)
-
-    response = client.get(f"/personnes/{admin.id}")
-
-    assert response.status_code == 404
-
-
-def test_us13_propre_liste_ne_revele_rien_sur_une_suggestion_cachee(
-    client, alice, bob, create_gift, login_as, db_session
-):
-    gift = create_gift(bob, recipient=alice, name="Cadeau secret")
-    db_session.add(Comment(gift_id=gift.id, author_id=bob.id, content="commentaire secret"))
-    db_session.add(Reservation(gift_id=gift.id, user_id=bob.id))
-    db_session.commit()
-    login_as(client, alice)
-
-    response = client.get(f"/personnes/{alice.id}")
-
-    assert "Cadeau secret" not in response.text
-    assert "commentaire secret" not in response.text
-    assert "Suggéré" not in response.text
-
-
-def test_us13_liste_dun_autre_affiche_statut_et_reservants(
-    client, alice, bob, create_gift, login_as, db_session
-):
-    gift = create_gift(bob, name="Cadeau de Bob")
-    db_session.add(Reservation(gift_id=gift.id, user_id=alice.id))
-    db_session.commit()
-    login_as(client, alice)
-
-    response = client.get(f"/personnes/{bob.id}")
-
-    assert "réservé" in response.text
-    assert "Alice" in response.text
-
-
-def test_us12_destinataire_par_defaut_affiche_mon_prenom_sans_liste(client, alice, login_as):
-    login_as(client, alice)
-
-    response = client.get("/cadeaux/nouveau/destinataire", params={"is_suggestion": "non"})
-
-    assert "Alice" in response.text
-    assert "<select" not in response.text
-
-
-def test_us12_destinataire_suggestion_exclut_moi_admin_et_inactifs(
-    client, alice, bob, chloe, admin, login_as, db_session
-):
-    chloe.is_active = False
-    db_session.commit()
-    login_as(client, alice)
-
-    response = client.get("/cadeaux/nouveau/destinataire", params={"is_suggestion": "oui"})
-
-    assert ">Bob</option>" in response.text
-    assert ">Alice</option>" not in response.text
-    assert ">Chloé</option>" not in response.text
-    assert ">Admin</option>" not in response.text
-    assert "Idée de : Alice" in response.text
-
-
-def test_us12_creation_suggestion_enregistre_bon_auteur_et_destinataire(
-    client, alice, bob, login_as, extract_csrf_token, db_session
-):
-    login_as(client, alice)
-    page = client.get("/cadeaux/nouveau")
-    token = extract_csrf_token(page.text)
-
-    client.post(
-        "/cadeaux/nouveau",
-        data={
-            "name": "Jeu de société",
-            "is_suggestion": "oui",
-            "recipient_id": str(bob.id),
-            "csrf_token": token,
-        },
-    )
-
-    cadeau = db_session.query(Gift).filter_by(name="Jeu de société").one()
-    assert cadeau.author_id == alice.id
-    assert cadeau.recipient_id == bob.id
-
-
-def test_us12_destinataire_ne_voit_jamais_sa_suggestion_sur_sa_liste_ni_son_compteur(
-    client, alice, bob, login_as, extract_csrf_token
-):
-    login_as(client, alice)
-    page = client.get("/cadeaux/nouveau")
-    token = extract_csrf_token(page.text)
-    client.post(
-        "/cadeaux/nouveau",
-        data={
-            "name": "Jeu secret",
-            "is_suggestion": "oui",
-            "recipient_id": str(bob.id),
-            "csrf_token": token,
-        },
-    )
-
-    login_as(client, bob)
-    liste = client.get(f"/personnes/{bob.id}")
-    accueil = client.get("/")
-
-    assert "Jeu secret" not in liste.text
-    assert "Bob (0)" in accueil.text
-
-
-def test_us12_les_autres_voient_suggere_par(
-    client, alice, bob, chloe, login_as, extract_csrf_token
-):
-    login_as(client, alice)
-    page = client.get("/cadeaux/nouveau")
-    token = extract_csrf_token(page.text)
-    client.post(
-        "/cadeaux/nouveau",
-        data={
-            "name": "Jeu visible",
-            "is_suggestion": "oui",
-            "recipient_id": str(bob.id),
-            "csrf_token": token,
-        },
-    )
-
-    login_as(client, chloe)
-    liste = client.get(f"/personnes/{bob.id}")
-
-    assert "Jeu visible" in liste.text
-    assert "Suggéré par Alice" in liste.text
-
-
-def test_us15_lien_souvre_dans_un_nouvel_onglet_avec_rel_securise(
-    client, alice, login_as, create_gift
-):
-    gift = create_gift(alice, name="Vélo", url="https://example.com")
-    login_as(client, alice)
-
-    response = client.get(f"/cadeaux/{gift.id}")
-
-    assert 'target="_blank"' in response.text
-    assert 'rel="noopener noreferrer"' in response.text
-
-
-def test_us15_modifier_et_supprimer_visibles_seulement_pour_lauteur(
-    client, bob, chloe, login_as, create_gift
-):
-    gift = create_gift(bob)
-
-    login_as(client, bob)
-    response_auteur = client.get(f"/cadeaux/{gift.id}")
-
-    login_as(client, chloe)
-    response_autre = client.get(f"/cadeaux/{gift.id}")
-
-    assert f"/cadeaux/{gift.id}/modifier" in response_auteur.text
-    assert f"/cadeaux/{gift.id}/modifier" not in response_autre.text
-    assert f"/cadeaux/{gift.id}/supprimer" in response_auteur.text
-    assert f"/cadeaux/{gift.id}/supprimer" not in response_autre.text
-
-
-def test_us15_destinataire_de_son_cadeau_ne_voit_ni_statut_ni_reservants_ni_acces_commentaires(
-    client, alice, bob, login_as, create_gift, db_session
-):
-    gift = create_gift(alice)
-    db_session.add(Reservation(gift_id=gift.id, user_id=bob.id))
-    db_session.commit()
-    login_as(client, alice)
-
-    response = client.get(f"/cadeaux/{gift.id}")
-
-    assert "Bob" not in response.text
-    assert f"/cadeaux/{gift.id}/commentaires" not in response.text
-
-
-def test_us15_autre_viewer_voit_statut_reservants_et_acces_commentaires(
-    client, alice, bob, chloe, login_as, create_gift, db_session
-):
-    gift = create_gift(alice)
-    db_session.add(Reservation(gift_id=gift.id, user_id=bob.id))
-    db_session.commit()
-    login_as(client, chloe)
-
-    response = client.get(f"/cadeaux/{gift.id}")
-
-    assert "Bob" in response.text
-    assert f"/cadeaux/{gift.id}/commentaires" in response.text
-
-
-def test_us15_destinataire_dune_suggestion_recoit_404(client, alice, bob, login_as, create_gift):
-    gift = create_gift(bob, recipient=alice)
-    login_as(client, alice)
-
-    response = client.get(f"/cadeaux/{gift.id}")
-
-    assert response.status_code == 404
-
-
-def test_us14_recherche_filtre_la_liste(client, alice, create_gift, login_as):
-    create_gift(alice, name="Vélo électrique")
-    create_gift(alice, name="Casque audio")
-    login_as(client, alice)
-
-    response = client.get(f"/personnes/{alice.id}", params={"q": "velo"})
-
-    assert "Vélo électrique" in response.text
-    assert "Casque audio" not in response.text
-
-
-def test_us14_tri_prix_croissant_cadeaux_sans_prix_en_fin(client, alice, create_gift, login_as):
-    create_gift(alice, name="Cher", price=Decimal("50"))
-    create_gift(alice, name="Pas cher", price=Decimal("5"))
-    create_gift(alice, name="Sans prix")
-    login_as(client, alice)
-
-    response = client.get(f"/personnes/{alice.id}", params={"tri": "prix"})
-
-    positions = [response.text.index(nom) for nom in ["Pas cher", "Cher", "Sans prix"]]
-    assert positions == sorted(positions)
-
-
-def test_us14_tri_statut_absent_de_sa_propre_liste(client, alice, login_as):
-    login_as(client, alice)
-
-    response = client.get(f"/personnes/{alice.id}")
-
-    assert 'value="statut"' not in response.text
-
-
-def test_us14_tri_statut_force_retombe_sur_le_tri_par_nom_sur_sa_propre_liste(
-    client, alice, create_gift, login_as
-):
-    create_gift(alice, name="Zebre en peluche")
-    create_gift(alice, name="Abricots séchés")
-    login_as(client, alice)
-
-    response = client.get(f"/personnes/{alice.id}", params={"tri": "statut"})
-
-    assert response.text.index("Abricots") < response.text.index("Zebre")
-
-
-def test_us14_tri_statut_disponible_sur_la_liste_dun_autre(client, alice, bob, login_as):
-    login_as(client, bob)
-
-    response = client.get(f"/personnes/{alice.id}")
-
-    assert 'value="statut"' in response.text
-
-
-def test_us16_formulaire_prerempli_pour_lauteur(client, alice, create_gift, login_as):
-    gift = create_gift(alice, name="Vélo", price=Decimal("50"))
-    login_as(client, alice)
-
-    response = client.get(f"/cadeaux/{gift.id}/modifier")
-
-    assert response.status_code == 200
-    assert 'value="Vélo"' in response.text
-
-
-def test_us16_autre_membre_recoit_403_sur_formulaire_et_soumission(
-    client, alice, bob, create_gift, login_as, extract_csrf_token
-):
-    gift = create_gift(alice, name="Vélo")
-    login_as(client, alice)
-    token = extract_csrf_token(client.get(f"/cadeaux/{gift.id}/modifier").text)
-    login_as(client, bob)
-
-    get_response = client.get(f"/cadeaux/{gift.id}/modifier")
-    post_response = client.post(
-        f"/cadeaux/{gift.id}/modifier",
-        data={"name": "Piraté", "csrf_token": token},
-    )
-
-    assert get_response.status_code == 403
-    assert post_response.status_code == 403
-
-
-def test_us16_modification_redirige_vers_le_detail(
-    client, alice, create_gift, login_as, extract_csrf_token, db_session
-):
-    gift = create_gift(alice, name="Vélo")
-    login_as(client, alice)
-    page = client.get(f"/cadeaux/{gift.id}/modifier")
-    token = extract_csrf_token(page.text)
-
-    response = client.post(
-        f"/cadeaux/{gift.id}/modifier",
-        data={"name": "Trottinette", "csrf_token": token},
-        follow_redirects=False,
-    )
-
-    assert response.status_code == 303
-    assert response.headers["location"] == f"/cadeaux/{gift.id}"
-    db_session.refresh(gift)
-    assert gift.name == "Trottinette"
-
-
-def test_us16_destinataire_non_modifiable_meme_force(
-    client, alice, bob, create_gift, login_as, extract_csrf_token, db_session
-):
-    gift = create_gift(alice, name="Vélo")
-    login_as(client, alice)
-    page = client.get(f"/cadeaux/{gift.id}/modifier")
-    token = extract_csrf_token(page.text)
-
-    client.post(
-        f"/cadeaux/{gift.id}/modifier",
-        data={"name": "Vélo", "recipient_id": str(bob.id), "csrf_token": token},
-    )
-
-    db_session.refresh(gift)
+def test_us11_destinataire_forge_ignore_sans_suggestion(login, db, alice, bob):
+    login(alice).post("/cadeaux", data={"name": "Vélo", "recipient_id": bob.id})
+    (gift,) = _gifts(db)
     assert gift.recipient_id == alice.id
 
 
-def test_us16_cadeau_retire_404_meme_pour_lauteur(client, alice, create_gift, login_as):
-    gift = create_gift(alice, name="Vélo", removed=True)
-    login_as(client, alice)
+def test_us11_image_enregistree_et_fichier_invalide_refuse(login, db, alice):
+    client = login(alice)
+    response = client.post(
+        "/cadeaux", data={"name": "Vélo"}, files={"image": ("v.png", png_bytes(), "image/png")}
+    )
+    assert response.status_code == 303
+    (gift,) = _gifts(db)
+    assert gift.image_path and (settings.media_dir / gift.image_path).is_file()
 
-    response = client.get(f"/cadeaux/{gift.id}/modifier")
-
-    assert response.status_code == 404
-
-
-def test_us16_cadeau_archive_404_meme_pour_lauteur(client, alice, create_gift, login_as):
-    gift = create_gift(alice, name="Vélo", archived_year=2025)
-    login_as(client, alice)
-
-    response = client.get(f"/cadeaux/{gift.id}/modifier")
-
-    assert response.status_code == 404
+    response = client.post(
+        "/cadeaux", data={"name": "Faux"}, files={"image": ("x.png", b"pas une image", "image/png")}
+    )
+    assert response.status_code == 422 and "image valide" in response.text
+    assert len(_gifts(db)) == 1
 
 
-def test_us17_autre_membre_recoit_403(
-    client, alice, bob, create_gift, login_as, extract_csrf_token
+def test_us12_formulaire_pour_qui_sans_moi_ni_admin_ni_desactive(
+    login, db, alice, bob, chloe, admin
 ):
-    gift = create_gift(alice, name="Vélo")
-    login_as(client, alice)
-    token = extract_csrf_token(client.get(f"/cadeaux/{gift.id}").text)
-    login_as(client, bob)
-
-    response = client.post(f"/cadeaux/{gift.id}/supprimer", data={"csrf_token": token})
-
-    assert response.status_code == 403
-
-
-def test_us17_sans_activite_supprime_definitivement(
-    client, alice, create_gift, login_as, extract_csrf_token, db_session
-):
-    gift = create_gift(alice, name="Vélo")
-    gift_id = gift.id
-    login_as(client, alice)
-    page = client.get(f"/cadeaux/{gift_id}")
-    token = extract_csrf_token(page.text)
-
-    response = client.post(f"/cadeaux/{gift_id}/supprimer", data={"csrf_token": token})
-
-    assert response.status_code == 200
-    assert "Cadeau supprimé" in response.text
-    assert db_session.get(Gift, gift_id) is None
+    chloe.is_active = False
+    db.commit()
+    html = login(alice).get("/cadeaux/nouveau").text
+    select_html = html.split('id="recipient_id"')[1].split("</select>")[0]
+    assert "Bob" in select_html
+    assert "Alice" not in select_html and "Chloé" not in select_html and "admin" not in select_html
+    assert "Idée de" in html
 
 
-def test_us17_avec_reservation_supprime_en_douceur_meme_message(
-    client, alice, bob, create_gift, login_as, extract_csrf_token, db_session
-):
-    gift = create_gift(alice, name="Vélo")
-    db_session.add(Reservation(gift_id=gift.id, user_id=bob.id))
-    db_session.commit()
-    login_as(client, alice)
-    page = client.get(f"/cadeaux/{gift.id}")
-    token = extract_csrf_token(page.text)
-
-    response = client.post(f"/cadeaux/{gift.id}/supprimer", data={"csrf_token": token})
-
-    assert response.status_code == 200
-    assert "Cadeau supprimé" in response.text
-    db_session.refresh(gift)
-    assert gift.removed_at is not None
+def test_us12_suggestion_enregistree_et_affichee_aux_autres(login, db, alice, bob, chloe):
+    response = login(alice).post(
+        "/cadeaux", data={"name": "Trottinette", "suggest": "1", "recipient_id": bob.id}
+    )
+    assert response.headers["location"] == f"/personnes/{bob.id}"
+    (gift,) = _gifts(db)
+    assert gift.author_id == alice.id and gift.recipient_id == bob.id
+    assert "Suggéré par Alice" in login(chloe).get(f"/personnes/{bob.id}").text
+    assert "Trottinette" not in login(bob).get(f"/personnes/{bob.id}").text
 
 
-def test_us17_cadeau_deja_retire_recoit_404(
-    client, alice, create_gift, login_as, extract_csrf_token
-):
-    gift = create_gift(alice, name="Vélo", removed=True)
-    login_as(client, alice)
-    page = client.get("/cadeaux/nouveau")
-    token = extract_csrf_token(page.text)
-
-    response = client.post(f"/cadeaux/{gift.id}/supprimer", data={"csrf_token": token})
-
-    assert response.status_code == 404
+@pytest.mark.parametrize("target", ["moi", "admin", "vide", "inconnu"])
+def test_us12_destinataire_invalide_refuse(login, db, alice, admin, target):
+    recipient = {"moi": alice.id, "admin": admin.id, "vide": "", "inconnu": 999}[target]
+    response = login(alice).post(
+        "/cadeaux", data={"name": "X", "suggest": "1", "recipient_id": recipient}
+    )
+    assert response.status_code == 422
+    assert _gifts(db) == []
 
 
-def test_us17_destinataire_ne_voit_jamais_le_cadeau_retire_sur_sa_liste(
-    client, alice, bob, create_gift, login_as, extract_csrf_token, db_session
-):
-    gift = create_gift(alice, name="Vélo")
-    db_session.add(Comment(gift_id=gift.id, author_id=bob.id, content="Chouette"))
-    db_session.commit()
-    login_as(client, alice)
-    page = client.get(f"/cadeaux/{gift.id}")
-    token = extract_csrf_token(page.text)
-    client.post(f"/cadeaux/{gift.id}/supprimer", data={"csrf_token": token})
+def test_us13_personne_inexistante_404(login, alice, admin):
+    client = login(alice)
+    assert client.get("/personnes/999").status_code == 404
+    assert client.get(f"/personnes/{admin.id}").status_code == 404
 
-    liste = client.get(f"/personnes/{alice.id}")
 
-    assert "Vélo" not in liste.text
+def test_us14_recherche_sans_accents_ni_casse(login, alice, bob, make_gift):
+    make_gift(bob, bob, "Vélo électrique")
+    make_gift(bob, bob, "Livre")
+    html = login(alice).get(f"/personnes/{bob.id}?q=velo").text
+    assert "Vélo électrique" in html and "Livre" not in html
+
+
+def test_us14_tri_par_prix_sans_prix_a_la_fin(login, alice, bob, make_gift):
+    make_gift(bob, bob, "Sans prix")
+    make_gift(bob, bob, "Cher", price=Decimal("90"))
+    make_gift(bob, bob, "Pas cher", price=Decimal("5"))
+    client = login(alice)
+    asc = client.get(f"/personnes/{bob.id}?tri=prix").text
+    assert asc.index("Pas cher") < asc.index(">Cher<") < asc.index("Sans prix")
+    desc = client.get(f"/personnes/{bob.id}?tri=prix&sens=desc").text
+    assert desc.index(">Cher<") < desc.index("Pas cher") < desc.index("Sans prix")
+
+
+def test_us14_tri_par_statut_absent_de_ma_liste(login, db, alice, bob, make_gift):
+    libre = make_gift(bob, bob, "Aaa libre")
+    pris = make_gift(bob, bob, "Zzz pris")
+    pris.reservations.append(Reservation(user_id=alice.id))
+    db.commit()
+    assert libre.id
+    other = login(alice).get(f"/personnes/{bob.id}?tri=statut&sens=desc").text
+    assert 'value="statut"' in other and other.index("Zzz pris") < other.index("Aaa libre")
+    mine = login(bob).get(f"/personnes/{bob.id}?tri=statut&sens=desc").text
+    assert 'value="statut"' not in mine
+    assert mine.index("Zzz pris") < mine.index("Aaa libre")  # retombe sur le tri par nom
+
+
+def test_us15_detail_lien_et_boutons_auteur(login, alice, bob, make_gift):
+    gift = make_gift(bob, bob, "Vélo", url="https://exemple.com/velo", price=Decimal("39.99"))
+    as_author = login(bob).get(f"/cadeaux/{gift.id}").text
+    assert 'target="_blank" rel="noopener noreferrer"' in as_author
+    assert "39,99" in as_author and "Modifier" in as_author and "Supprimer" in as_author
+    as_other = login(alice).get(f"/cadeaux/{gift.id}").text
+    assert "Modifier" not in as_other and "Je m'en occupe" in as_other
+
+
+def test_us16_seul_l_auteur_modifie(login, db, alice, bob, make_gift):
+    gift = make_gift(bob, bob, "Vélo")
+    other = login(alice)
+    assert other.get(f"/cadeaux/{gift.id}/modifier").status_code == 403
+    assert other.post(f"/cadeaux/{gift.id}/modifier", data={"name": "Piraté"}).status_code == 403
+    response = login(bob).post(
+        f"/cadeaux/{gift.id}/modifier", data={"name": "Vélo rouge", "price": "120"}
+    )
+    assert response.status_code == 303
+    db.refresh(gift)
+    assert gift.name == "Vélo rouge" and gift.price == Decimal("120.00")
+    assert gift.recipient_id == bob.id
+
+
+def test_us16_validations_et_remplacement_d_image(login, db, bob, make_gift):
+    client = login(bob)
+    client.post(
+        "/cadeaux", data={"name": "Vélo"}, files={"image": ("v.png", png_bytes(), "image/png")}
+    )
+    (gift,) = _gifts(db)
+    old_file = settings.media_dir / gift.image_path
+    assert client.post(f"/cadeaux/{gift.id}/modifier", data={"name": ""}).status_code == 422
+    client.post(
+        f"/cadeaux/{gift.id}/modifier",
+        data={"name": "Vélo"},
+        files={"image": ("n.png", png_bytes((30, 30)), "image/png")},
+    )
+    db.refresh(gift)
+    assert not old_file.exists() and (settings.media_dir / gift.image_path).is_file()
+
+
+def test_us17_suppression_definitive_sans_activite(login, db, alice, bob, make_gift):
+    gift = make_gift(bob, bob, "Vélo")
+    assert login(alice).post(f"/cadeaux/{gift.id}/supprimer").status_code == 403
+    response = login(bob).post(f"/cadeaux/{gift.id}/supprimer")
+    assert response.status_code == 303
+    assert _gifts(db) == []
+
+
+@pytest.mark.parametrize("activity", ["reservation", "achat", "commentaire"])
+def test_us17_suppression_douce_avec_activite(login, db, alice, bob, make_gift, activity):
+    gift = make_gift(bob, bob, "Vélo")
+    if activity == "commentaire":
+        gift.comments.append(Comment(author_id=alice.id, content="ok"))
+    else:
+        gift.reservations.append(Reservation(user_id=alice.id))
+        if activity == "achat":
+            gift.purchased_by_id = alice.id
+    db.commit()
+    client = login(bob)
+    hard = make_gift(bob, bob, "Autre")
+    soft_response = client.post(f"/cadeaux/{gift.id}/supprimer")
+    soft_page = client.get(soft_response.headers["location"]).text
+    hard_response = client.post(f"/cadeaux/{hard.id}/supprimer")
+    hard_page = client.get(hard_response.headers["location"]).text
+    # Même écran et même message dans les deux cas : rien n'est révélé à l'auteur
+    assert soft_response.headers["location"] == hard_response.headers["location"]
+    assert "Cadeau supprimé." in soft_page and "Cadeau supprimé." in hard_page
+    assert "Vélo" not in soft_page
+    (remaining,) = _gifts(db)
+    assert remaining.id == gift.id and remaining.removed_at is not None
+    # Un cadeau retiré n'est plus réservable
+    other = login(alice)
+    other.post(f"/cadeaux/{gift.id}/reserver")
+    assert "plus modifiable" in other.get(f"/cadeaux/{gift.id}").text

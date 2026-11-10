@@ -1,35 +1,85 @@
 {% extends "base.html" %}
-
-{% block title %}Mon profil{% endblock %}
-
+{% from "macros.html" import avatar, icon, pill, csrf %}
+{% block title %}Mon profil · Liste de Noël{% endblock %}
 {% block content %}
-<a href="/">&larr; Liste des personnes</a>
-<h2>Mon profil, {{ membre.first_name }}</h2>
+<a class="back-link" href="/">{{ icon("back") }} La famille</a>
 
-<section>
-    <h3>Ma photo</h3>
-    {% if erreur_photo %}
-    <p role="alert">{{ erreur_photo }}</p>
-    {% endif %}
-    <form method="post" action="/profil/photo" enctype="multipart/form-data">
-        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+<div class="page-head">
+  <div class="page-head__who">
+    {{ avatar(user, "lg") }}
+    <div>
+      <h1>{{ user.first_name }}</h1>
+      <p class="muted">Mon profil</p>
+    </div>
+  </div>
+  <form method="post" action="/logout">{{ csrf(csrf_token) }}
+    <button class="btn btn--ghost" type="submit">Se déconnecter</button>
+  </form>
+</div>
 
-        {% if membre.photo_path %}
-        <img src="/media/{{ membre.photo_path }}" alt="" width="80" height="80">
-        <label><input type="checkbox" name="remove_photo" value="oui"> Supprimer la photo</label>
-        {% else %}
-        <span class="photo-placeholder">{{ membre.first_name[0] }}</span>
-        {% endif %}
-
-        <label for="photo">Remplacer la photo (JPEG, PNG ou WebP, 5 Mo maximum)</label>
-        <input type="file" id="photo" name="photo" accept="image/jpeg,image/png,image/webp">
-
-        <button type="submit">Enregistrer</button>
-    </form>
+<section class="card stack" aria-labelledby="mes-reservations">
+  <h2 id="mes-reservations">Mes réservations</h2>
+  {% if not groups %}
+  <p class="muted">Tu n'as encore réservé aucun cadeau.</p>
+  {% endif %}
+  {% for person, views, total in groups %}
+  <div class="resa-group">
+    <h3>{{ avatar(person, "sm") }} Pour {{ person.first_name }}</h3>
+    <ul class="resa-list">
+      {% for v in views %}
+      <li>
+        <a href="/cadeaux/{{ v.gift.id }}">{{ v.gift.name }}</a>
+        {{ pill(v.status) }}
+        <span class="resa-list__price">{% if v.gift.price is not none %}{{ v.gift.price | price }}{% endif %}</span>
+      </li>
+      {% endfor %}
+    </ul>
+    <p class="resa-total"><span class="muted">Total</span> <strong>{{ total | price }}</strong></p>
+  </div>
+  {% endfor %}
 </section>
 
-<form method="post" action="/logout">
-    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-    <button type="submit">Se déconnecter</button>
-</form>
+<section class="card stack" aria-labelledby="ma-photo">
+  <h2 id="ma-photo">Ma photo</h2>
+  <form class="stack" method="post" action="/profil/photo" enctype="multipart/form-data">
+    {{ csrf(csrf_token) }}
+    <div class="field">
+      <label for="photo">Nouvelle photo</label>
+      <input id="photo" name="photo" type="file" accept="image/jpeg,image/png,image/webp" required>
+      <p class="field__help">JPEG, PNG ou WebP, 5 Mo maximum.</p>
+    </div>
+    <div class="actions">
+      <button class="btn btn--primary" type="submit">Changer ma photo</button>
+    </div>
+  </form>
+  {% if user.photo_path %}
+  <form method="post" action="/profil/photo/supprimer">{{ csrf(csrf_token) }}
+    <button class="btn btn--ghost" type="submit">Supprimer ma photo</button>
+  </form>
+  {% endif %}
+</section>
+
+<section class="card" aria-labelledby="mon-mdp">
+  <form class="stack" method="post" action="/profil/mot-de-passe">
+    {{ csrf(csrf_token) }}
+    <h2 id="mon-mdp">Mon mot de passe</h2>
+    {% if password_error %}<p class="alert alert--error" role="alert">{{ password_error }}</p>{% endif %}
+    <div class="field">
+      <label for="current_password">Mot de passe actuel</label>
+      <input id="current_password" name="current_password" type="password" autocomplete="current-password" required>
+    </div>
+    <div class="field">
+      <label for="new_password">Nouveau mot de passe</label>
+      <input id="new_password" name="new_password" type="password" autocomplete="new-password" minlength="{{ settings.password_min_length }}" required>
+      <p class="field__help">{{ settings.password_min_length }} caractères minimum.</p>
+    </div>
+    <div class="field">
+      <label for="confirmation">Confirmation</label>
+      <input id="confirmation" name="confirmation" type="password" autocomplete="new-password" required>
+    </div>
+    <div class="actions">
+      <button class="btn btn--primary" type="submit">Changer mon mot de passe</button>
+    </div>
+  </form>
+</section>
 {% endblock %}

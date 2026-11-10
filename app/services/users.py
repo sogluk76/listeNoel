@@ -1,253 +1,122 @@
-from datetime import UTC, datetime, timedelta
+"""Comptes : création, validation, authentification (RG-01 à RG-11)."""
 
-from sqlalchemy import func
+from datetime import datetime, timedelta
+
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.models import User
+from app.config import settings
+from app.errors import Invalid
+from app.models import ROLE_ADMIN, ROLE_MEMBER, User, utcnow
 from app.security import hash_password, verify_password
-from app.services.images import InvalidImageError, delete_profile_photo, save_profile_photo
+from app.services.text import fold
 
-GENERIC_AUTH_ERROR_MESSAGE = "Mot de passe incorrect"  # RG-06 : jamais plus précis
-LOCKED_AUTH_ERROR_MESSAGE = "Compte temporairement bloqué, réessaie plus tard"  # RG-06
-MIN_PASSWORD_LENGTH = 8  # RG-10 / PO-09
-MAX_FAILED_ATTEMPTS = 5  # RG-05
-LOCKOUT_DURATION = timedelta(minutes=15)  # RG-05 / PO-01
+AUTH_OK = "ok"
+AUTH_BAD = "bad"
+AUTH_LOCKED = "locked"
 
-
-class AuthenticationError(Exception):
-    pass
+MSG_BAD_PASSWORD = "Mot de passe incorrect"
+MSG_LOCKED = "Compte temporairement bloqué, réessaie plus tard"
 
 
-class MemberNotFoundError(Exception):
-    pass
+def active_members(db: Session) -> list[User]:
+    """Membres actifs par ordre alphabétique, sans l'admin (RG-03, RG-12)."""
+    users = db.scalars(select(User).where(User.role == ROLE_MEMBER, User.is_active.is_(True))).all()
+    return sorted(users, key=lambda u: fold(u.first_name))
 
 
-def _now() -> datetime:
-    """Naïf, UTC : même convention que `created_at`/`updated_at` (horodatage SQLite)."""
-    return datetime.now(UTC).replace(tzinfo=None)
+def all_members(db: Session) -> list[User]:
+    users = db.scalars(select(User).where(User.role == ROLE_MEMBER)).all()
+    return sorted(users, key=lambda u: fold(u.first_name))
 
 
-def authenticate(db: Session, first_name: str, password: str, role: str) -> User:
-    """Authentifie un utilisateur d'un rôle donné (RG-05, RG-06).
-
-    Lève `AuthenticationError` avec le message générique si le prénom, le rôle ou le mot de
-    passe est incorrect ou le compte désactivé, ou avec le message de blocage si le compte est
-    bloqué (RG-05) — même avec le bon mot de passe.
-    """
-    user = (
-        db.query(User)
-        .filter(func.lower(User.first_name) == first_name.strip().lower(), User.role == role)
-        .first()
-    )
-    if user is None or not user.is_active:
-        raise AuthenticationError(GENERIC_AUTH_ERROR_MESSAGE)
-
-    now = _now()
-    if user.locked_until is not None:
-        if user.locked_until > now:
-            raise AuthenticationError(LOCKED_AUTH_ERROR_MESSAGE)
-        user.failed_login_count = 0
-        user.locked_until = None
-
-    if not verify_password(password, user.password_hash):
-        user.failed_login_count += 1
-        if user.failed_login_count >= MAX_FAILED_ATTEMPTS:
-            user.locked_until = now + LOCKOUT_DURATION
-        db.commit()
-        raise AuthenticationError(GENERIC_AUTH_ERROR_MESSAGE)
-
-    user.failed_login_count = 0
-    user.locked_until = None
-    db.commit()
+def get_active_member(db: Session, user_id: int | None) -> User | None:
+    if user_id is None:
+        return None
+    user = db.get(User, user_id)
+    if user is None or not user.is_member or not user.is_active:
+        return None
     return user
 
 
-def _first_name_deja_pris(db: Session, first_name: str, exclude_id: int | None = None) -> bool:
-    query = db.query(User).filter(func.lower(User.first_name) == first_name.lower())
-    if exclude_id is not None:
-        query = query.filter(User.id != exclude_id)
-    return query.first() is not None
+def find_by_name(db: Session, name: str) -> User | None:
+    wanted = fold(name)
+    for user in db.scalars(select(User)).all():
+        if fold(user.first_name) == wanted:
+            return user
+    return None
 
 
-def _create_user(
-    db: Session, first_name: str, password: str, role: str, photo: bytes | None = None
+def clean_name(db: Session, name: str, exclude_id: int | None = None) -> str:
+    """Valide un prénom : 1 à 50 caractères, unique sans tenir compte de la casse (RG-02)."""
+    name = " ".join((name or "").split())
+    if not name:
+        raise Invalid("Le prénom est obligatoire.")
+    if len(name) > 50:
+        raise Invalid("Le prénom ne doit pas dépasser 50 caractères.")
+    existing = find_by_name(db, name)
+    if existing is not None and existing.id != exclude_id:
+        raise Invalid("Ce prénom est déjà utilisé.")
+    return name
+
+
+def check_new_password(password: str, confirmation: str) -> None:
+    if len(password or "") < settings.password_min_length:
+        raise Invalid(
+            f"Le mot de passe doit contenir au moins {settings.password_min_length} caractères."
+        )
+    if password != confirmation:
+        raise Invalid("La confirmation ne correspond pas au mot de passe.")
+
+
+def create_user(
+    db: Session, name: str, password: str, confirmation: str, role: str = ROLE_MEMBER
 ) -> User:
-    first_name = first_name.strip()
-    if not first_name:
-        raise ValueError("Le prénom est obligatoire.")
-    if len(password) < MIN_PASSWORD_LENGTH:
-        msg = f"Le mot de passe doit contenir au moins {MIN_PASSWORD_LENGTH} caractères."
-        raise ValueError(msg)
-    if _first_name_deja_pris(db, first_name):
-        raise ValueError(f"Le prénom « {first_name} » est déjà utilisé.")
-
-    photo_path = None
-    if photo is not None:
-        try:
-            photo_path = save_profile_photo(photo)
-        except InvalidImageError as exc:
-            raise ValueError(str(exc)) from exc
-
-    user = User(
-        first_name=first_name,
-        password_hash=hash_password(password),
-        role=role,
-        photo_path=photo_path,
-    )
+    name = clean_name(db, name)
+    check_new_password(password, confirmation)
+    user = User(first_name=name, password_hash=hash_password(password), role=role)
     db.add(user)
     db.commit()
-    db.refresh(user)
     return user
 
 
-def create_admin(db: Session, first_name: str, password: str) -> User:
-    """Crée le compte admin (US-04). Lève `ValueError` si une donnée est invalide."""
-    return _create_user(db, first_name, password, role="admin")
+def has_admin(db: Session) -> bool:
+    return db.scalar(select(User.id).where(User.role == ROLE_ADMIN).limit(1)) is not None
 
 
-def create_member(
-    db: Session,
-    first_name: str,
-    password: str,
-    password_confirmation: str,
-    photo: bytes | None = None,
-) -> User:
-    """Crée un compte membre actif (US-05). Lève `ValueError` sinon (RG-02, RG-10, RG-17)."""
-    if password != password_confirmation:
-        raise ValueError("Les mots de passe ne correspondent pas.")
-    return _create_user(db, first_name, password, role="member", photo=photo)
-
-
-def list_members(db: Session) -> list[User]:
-    """Tous les comptes membres, actifs ou non (US-06). L'admin n'y figure jamais."""
-    return db.query(User).filter(User.role == "member").order_by(func.lower(User.first_name)).all()
-
-
-def list_active_members(db: Session) -> list[User]:
-    """Membres actifs, triés alphabétiquement (RG-03, US-01). L'admin n'y figure jamais."""
-    return (
-        db.query(User)
-        .filter(User.role == "member", User.is_active.is_(True))
-        .order_by(func.lower(User.first_name))
-        .all()
-    )
-
-
-def list_other_active_members(db: Session, viewer: User) -> list[User]:
-    """RG-19 : membres actifs disponibles comme destinataire d'une suggestion (pas moi)."""
-    return [member for member in list_active_members(db) if member.id != viewer.id]
-
-
-def get_member(db: Session, member_id: int) -> User:
-    """Un compte membre par id. Lève `MemberNotFoundError` sinon (jamais l'admin)."""
-    user = db.query(User).filter(User.id == member_id, User.role == "member").first()
-    if user is None:
-        raise MemberNotFoundError
-    return user
-
-
-def get_active_member(db: Session, member_id: int) -> User:
-    """Un compte membre **actif** par id (RG-11/RG-12) : un compte désactivé ou l'admin
-    lèvent `MemberNotFoundError`, pour que l'appelant renvoie un 404 identique aux deux cas."""
-    user = (
-        db.query(User)
-        .filter(User.id == member_id, User.role == "member", User.is_active.is_(True))
-        .first()
-    )
-    if user is None:
-        raise MemberNotFoundError
-    return user
-
-
-def _clear_lockout(member: User) -> None:
-    member.failed_login_count = 0
-    member.locked_until = None
-
-
-def reset_password(db: Session, member_id: int, password: str, password_confirmation: str) -> User:
-    """Définit un nouveau mot de passe pour un membre et lève son blocage (US-07, RG-05, RG-10).
-
-    Lève `MemberNotFoundError` si `member_id` ne désigne pas un compte membre, `ValueError`
-    si la confirmation ne correspond pas ou si le mot de passe est trop court.
-    """
-    member = get_member(db, member_id)
-    if password != password_confirmation:
-        raise ValueError("Les mots de passe ne correspondent pas.")
-    if len(password) < MIN_PASSWORD_LENGTH:
-        msg = f"Le mot de passe doit contenir au moins {MIN_PASSWORD_LENGTH} caractères."
-        raise ValueError(msg)
-
-    member.password_hash = hash_password(password)
-    _clear_lockout(member)
+def set_password(db: Session, user: User, password: str, confirmation: str) -> None:
+    """Change le mot de passe et lève un éventuel blocage (US-07)."""
+    check_new_password(password, confirmation)
+    user.password_hash = hash_password(password)
+    unlock(db, user, commit=False)
     db.commit()
-    return member
 
 
-def unlock_member(db: Session, member_id: int) -> User:
-    """Lève le blocage RG-05 d'un membre, sans effet s'il n'était pas bloqué (US-07).
+def unlock(db: Session, user: User, commit: bool = True) -> None:
+    user.failed_login_count = 0
+    user.locked_until = None
+    if commit:
+        db.commit()
 
-    Lève `MemberNotFoundError` si `member_id` ne désigne pas un compte membre.
-    """
-    member = get_member(db, member_id)
-    _clear_lockout(member)
+
+def authenticate(db: Session, user: User, password: str, now: datetime | None = None) -> str:
+    """Vérifie un mot de passe en appliquant le blocage après 5 échecs (RG-05)."""
+    now = now or utcnow()
+    if user.locked_until is not None:
+        if user.locked_until > now:
+            return AUTH_LOCKED
+        user.locked_until = None
+        user.failed_login_count = 0
+
+    if verify_password(user.password_hash, password or ""):
+        user.failed_login_count = 0
+        db.commit()
+        return AUTH_OK
+
+    user.failed_login_count += 1
+    result = AUTH_BAD
+    if user.failed_login_count >= settings.max_login_failures:
+        user.locked_until = now + timedelta(minutes=settings.lock_minutes)
+        result = AUTH_LOCKED
     db.commit()
-    return member
-
-
-def _swap_photo(member: User, photo: bytes | None, remove_photo: bool) -> None:
-    """RG-17 : remplace ou supprime la photo d'un membre, en nettoyant l'ancien fichier
-    du disque. Ne commite pas : à l'appelant de le faire avec le reste de ses changements.
-    """
-    nouveau_photo_path = member.photo_path
-    if photo is not None:
-        try:
-            nouveau_photo_path = save_profile_photo(photo)
-        except InvalidImageError as exc:
-            raise ValueError(str(exc)) from exc
-    elif remove_photo:
-        nouveau_photo_path = None
-
-    if nouveau_photo_path != member.photo_path and member.photo_path is not None:
-        delete_profile_photo(member.photo_path)
-
-    member.photo_path = nouveau_photo_path
-
-
-def update_member(
-    db: Session,
-    member_id: int,
-    first_name: str,
-    is_active: bool,
-    photo: bytes | None = None,
-    remove_photo: bool = False,
-) -> User:
-    """Modifie le prénom, la photo et le statut actif d'un membre (US-06, RG-02, RG-11, RG-17).
-
-    Lève `MemberNotFoundError` si `member_id` ne désigne pas un compte membre : cette fonction
-    ne doit jamais pouvoir modifier ou désactiver le compte admin, même via un id forgé.
-    """
-    member = get_member(db, member_id)
-
-    first_name = first_name.strip()
-    if not first_name:
-        raise ValueError("Le prénom est obligatoire.")
-    if _first_name_deja_pris(db, first_name, exclude_id=member.id):
-        raise ValueError(f"Le prénom « {first_name} » est déjà utilisé.")
-
-    _swap_photo(member, photo, remove_photo)
-
-    member.first_name = first_name
-    member.is_active = is_active
-    db.commit()
-    db.refresh(member)
-    return member
-
-
-def update_own_photo(
-    db: Session, member: User, photo: bytes | None = None, remove_photo: bool = False
-) -> User:
-    """RG-36 (US-23) : un membre change ou supprime sa propre photo de profil."""
-    _swap_photo(member, photo, remove_photo)
-    db.commit()
-    db.refresh(member)
-    return member
+    return result

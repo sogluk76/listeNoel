@@ -1,50 +1,67 @@
+"""Réservations et achat (RG-26 à RG-29).
+
+Les fonctions reçoivent un cadeau déjà contrôlé par visibility.get_gift_with_secrets :
+le destinataire n'arrive donc jamais jusqu'ici.
+"""
+
 from sqlalchemy.orm import Session
 
-from app.models import Gift, Reservation, User
-from app.services.visibility import GiftNotFoundError, IsRecipientError
+from app.errors import Forbidden, Invalid
+from app.models import Gift, Reservation, User, utcnow
+
+MSG_LOCKED = "Ce cadeau n'est plus modifiable."
 
 
-def _get_reservable_gift(db: Session, member: User, gift_id: int) -> Gift:
-    """RG-26 à RG-28 : le cadeau `gift_id`, à condition que `member` puisse y réserver ou
-    annuler. Lève `GiftNotFoundError` si inexistant ou archivé, `IsRecipientError` si
-    `member` en est le destinataire (toujours 403, même via requête forgée), `ValueError`
-    s'il est acheté ou retiré (AC US-18 : réserver et annuler y sont impossibles).
-    """
-    gift = db.get(Gift, gift_id)
-    if gift is None or gift.archived_year is not None:
-        raise GiftNotFoundError
-    if gift.recipient_id == member.id:
-        raise IsRecipientError
-    if gift.purchased_by_id is not None or gift.removed_at is not None:
-        raise ValueError("Ce cadeau n'est plus réservable.")
-    return gift
+def _require_not_recipient(user: User, gift: Gift) -> None:
+    if user.id == gift.recipient_id or not user.is_member:
+        raise Forbidden()
 
 
-def reserve_gift(db: Session, member: User, gift_id: int) -> Gift:
-    """RG-26 : réserve `gift_id` pour `member`. Plusieurs membres peuvent réserver le même
-    cadeau, mais pas deux fois le même (`ValueError` sinon).
-    """
-    gift = _get_reservable_gift(db, member, gift_id)
-    if any(r.user_id == member.id for r in gift.reservations):
-        raise ValueError("Vous avez déjà réservé ce cadeau.")
+def _require_open(gift: Gift) -> None:
+    """Ni acheté, ni retiré, ni archivé."""
+    if gift.is_bought or gift.is_removed or gift.is_archived:
+        raise Invalid(MSG_LOCKED)
 
-    db.add(Reservation(gift_id=gift.id, user_id=member.id))
+
+def _find(gift: Gift, user: User) -> Reservation | None:
+    return next((r for r in gift.reservations if r.user_id == user.id), None)
+
+
+def reserve(db: Session, user: User, gift: Gift) -> None:
+    _require_not_recipient(user, gift)
+    _require_open(gift)
+    if _find(gift, user) is not None:
+        raise Invalid("Tu t'occupes déjà de ce cadeau.")
+    gift.reservations.append(Reservation(user_id=user.id))
     db.commit()
-    db.refresh(gift)
-    return gift
 
 
-def cancel_reservation(db: Session, member: User, gift_id: int) -> Gift:
-    """RG-27 : annule la réservation de `member` sur `gift_id`. Il n'y a pas de paramètre
-    désignant un autre réservant : on ne peut jamais annuler que la sienne, par construction.
-    `ValueError` si `member` n'avait pas réservé ce cadeau.
-    """
-    gift = _get_reservable_gift(db, member, gift_id)
-    reservation = next((r for r in gift.reservations if r.user_id == member.id), None)
+def cancel(db: Session, user: User, gift: Gift) -> None:
+    _require_not_recipient(user, gift)
+    _require_open(gift)
+    reservation = _find(gift, user)
     if reservation is None:
-        raise ValueError("Vous n'avez pas réservé ce cadeau.")
-
-    db.delete(reservation)
+        raise Invalid("Tu n'as pas réservé ce cadeau.")
+    gift.reservations.remove(reservation)
     db.commit()
-    db.refresh(gift)
-    return gift
+
+
+def mark_bought(db: Session, user: User, gift: Gift) -> None:
+    _require_not_recipient(user, gift)
+    _require_open(gift)
+    if _find(gift, user) is None:
+        raise Forbidden()  # seul un réservant peut marquer acheté
+    gift.purchased_by_id = user.id
+    gift.purchased_at = utcnow()
+    db.commit()
+
+
+def cancel_bought(db: Session, user: User, gift: Gift) -> None:
+    _require_not_recipient(user, gift)
+    if gift.is_removed or gift.is_archived or not gift.is_bought:
+        raise Invalid(MSG_LOCKED)
+    if gift.purchased_by_id != user.id:
+        raise Forbidden()  # seul l'acheteur peut annuler l'achat
+    gift.purchased_by_id = None
+    gift.purchased_at = None
+    db.commit()

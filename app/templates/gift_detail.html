@@ -1,0 +1,93 @@
+{% extends "base.html" %}
+{% from "macros.html" import avatar, icon, pill, csrf %}
+{% block title %}{{ view.gift.name }} · Liste de Noël{% endblock %}
+{% block content %}
+{% set gift = view.gift %}
+<a class="back-link" href="/personnes/{{ gift.recipient_id }}">{{ icon("back") }} {% if view.is_mine %}Ma liste{% else %}Liste de {{ gift.recipient.first_name }}{% endif %}</a>
+
+<article class="card gift-detail">
+  {% if gift.image_path %}
+  <img class="gift-detail__image" src="/media/{{ gift.image_path }}" alt="Photo du cadeau">
+  {% endif %}
+
+  <div class="gift-detail__body">
+    <h1>{{ gift.name }}</h1>
+    {% if gift.price is not none %}<p class="gift-detail__price">{{ gift.price | price }}</p>{% endif %}
+
+    <dl class="facts">
+      <div><dt>Pour</dt><dd>{{ gift.recipient.first_name }}</dd></div>
+      <div><dt>Ajouté le</dt><dd>{{ gift.created_at | d }}</dd></div>
+      {% if view.suggested_by %}<div><dt>Suggéré par</dt><dd>{{ view.suggested_by.first_name }}</dd></div>{% endif %}
+    </dl>
+
+    {% if gift.url %}
+    <p><a class="btn btn--secondary" href="{{ gift.url }}" target="_blank" rel="noopener noreferrer">{{ icon("link") }} Voir le produit</a></p>
+    {% endif %}
+  </div>
+</article>
+
+{% if view.show_secrets %}
+<section class="card stack" aria-labelledby="coordination">
+  <div class="card__head">
+    <h2 id="coordination">Qui s'en occupe ?</h2>
+    {{ pill(view.status) }}
+  </div>
+
+  {% if view.status == "removed" %}
+  <p class="muted">Retiré par {{ view.removed_by.first_name }}. Ce cadeau n'est plus souhaité.</p>
+  {% else %}
+    {% if view.buyer %}
+    <p><strong>Acheté par {{ view.buyer.first_name }}.</strong></p>
+    {% endif %}
+    {% if view.reservers %}
+    <ul class="reservers">
+      {% for person in view.reservers %}
+      <li>{{ avatar(person, "sm") }} {{ person.first_name }}</li>
+      {% endfor %}
+    </ul>
+    {% elif not view.buyer %}
+    <p class="muted">Personne ne s'en occupe pour l'instant.</p>
+    {% endif %}
+
+    <div class="actions">
+      {% if view.buyer %}
+        {% if view.i_bought %}
+        <form method="post" action="/cadeaux/{{ gift.id }}/annuler-achat">{{ csrf(csrf_token) }}
+          <button class="btn btn--ghost" type="submit">Annuler l'achat</button></form>
+        {% endif %}
+      {% elif view.i_reserved %}
+        <form method="post" action="/cadeaux/{{ gift.id }}/acheter">{{ csrf(csrf_token) }}
+          <button class="btn btn--primary" type="submit">Marquer comme acheté</button></form>
+        <form method="post" action="/cadeaux/{{ gift.id }}/annuler-reservation">{{ csrf(csrf_token) }}
+          <button class="btn btn--ghost" type="submit">Annuler ma réservation</button></form>
+      {% else %}
+        <form method="post" action="/cadeaux/{{ gift.id }}/reserver">{{ csrf(csrf_token) }}
+          <button class="btn btn--primary" type="submit">Je m'en occupe</button></form>
+      {% endif %}
+    </div>
+  {% endif %}
+
+  <a class="link-row" href="/cadeaux/{{ gift.id }}/commentaires">
+    {{ icon("chat") }}
+    <span>Commentaires{% if view.comment_count %} <span class="badge">{{ view.comment_count }}</span>{% endif %}</span>
+    {{ icon("chevron") }}
+  </a>
+</section>
+{% endif %}
+
+{% if view.can_edit %}
+<section class="card">
+  <div class="actions">
+    <a class="btn btn--secondary" href="/cadeaux/{{ gift.id }}/modifier">Modifier</a>
+    <details class="confirm">
+      <summary class="btn btn--ghost btn--danger">Supprimer</summary>
+      <form method="post" action="/cadeaux/{{ gift.id }}/supprimer" class="confirm__box">
+        {{ csrf(csrf_token) }}
+        <p>Supprimer ce cadeau ?</p>
+        <button class="btn btn--danger-solid" type="submit">Oui, supprimer</button>
+      </form>
+    </details>
+  </div>
+</section>
+{% endif %}
+{% endblock %}

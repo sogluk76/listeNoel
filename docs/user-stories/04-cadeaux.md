@@ -118,7 +118,7 @@ Une barre de recherche filtre la liste en direct (HTMX, avec un délai court apr
 
 ### Analyse fonctionnelle
 
-Le détail affiche l'image en grand, le nom, le prix, le lien cliquable (nouvel onglet) et la date d'ajout. Pour les autres que le destinataire, il affiche aussi « Suggéré par X » si c'est une suggestion, le statut, la liste des réservants et les boutons de réservation et d'achat (US-18, US-19), ainsi qu'un accès aux commentaires (US-20). Les boutons Modifier et Supprimer ne sont visibles que pour l'auteur (RG-21). Contenu confirmé (PO-07).
+Le détail affiche l'image en grand, le nom, le prix, le lien cliquable (nouvel onglet) et la date d'ajout. Pour les autres que le destinataire, il affiche aussi « Suggéré par X » si c'est une suggestion, le statut, la liste des réservants et les boutons de réservation et d'achat (US-18, US-19), ainsi qu'un accès aux commentaires (US-20). Les boutons Modifier et Supprimer ne sont visibles que pour l'auteur (RG-21). Le contenu exact de l'écran Power Apps reste à confirmer (PO-07).
 
 ### Critères d'acceptation
 - Le lien s'ouvre dans un nouvel onglet avec `rel="noopener noreferrer"`.
@@ -136,7 +136,7 @@ Le détail affiche l'image en grand, le nom, le prix, le lien cliquable (nouvel 
 
 ### Analyse fonctionnelle
 
-Depuis le détail, l'auteur ouvre le formulaire pré-rempli (mêmes champs qu'US-11/US-12). Il peut modifier le nom, le prix, le lien et l'image (remplacer ou supprimer). Le destinataire n'est pas modifiable : pour changer de destinataire, il faut supprimer le cadeau et en créer un autre. Un cadeau déjà acheté reste modifiable (PO-05) : les autres membres voient alors « modifié le <date> ».
+Depuis le détail, l'auteur ouvre le formulaire pré-rempli (mêmes champs qu'US-11/US-12). Il peut modifier le nom, le prix, le lien et l'image (remplacer ou supprimer). Le destinataire n'est pas modifiable : pour changer de destinataire, il faut supprimer le cadeau et en créer un autre. La modification d'un cadeau déjà acheté est à trancher (PO-05).
 
 ### Critères d'acceptation
 - Seul l'auteur peut modifier ; tout autre membre reçoit une erreur 403, y compris par requête forgée.

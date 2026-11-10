@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% from "macros.html" import icon, csrf %}
+{% block title %}Modifier mon message · Liste de Noël{% endblock %}
+{% block content %}
+<a class="back-link" href="/cadeaux/{{ comment.gift_id }}/commentaires">{{ icon("back") }} Annuler</a>
+
+<form class="card stack" method="post" action="/commentaires/{{ comment.id }}/modifier">
+  {{ csrf(csrf_token) }}
+  <h1>Modifier mon message</h1>
+  {% if error %}<p class="alert alert--error" role="alert">{{ error }}</p>{% endif %}
+  <div class="field">
+    <label for="content">Message</label>
+    <textarea id="content" name="content" rows="4" maxlength="1000" required>{{ content }}</textarea>
+  </div>
+  <div class="actions actions--end">
+    <a class="btn btn--ghost" href="/cadeaux/{{ comment.gift_id }}/commentaires">Annuler</a>
+    <button class="btn btn--primary" type="submit">Enregistrer</button>
+  </div>
+</form>
+{% endblock %}

@@ -1,0 +1,81 @@
+{% extends "base.html" %}
+{% from "macros.html" import icon, csrf, field_error %}
+{% block title %}{{ "Modifier le cadeau" if gift else "Ajouter un cadeau" }} · Liste de Noël{% endblock %}
+{% block content %}
+{% set editing = gift is not none %}
+<a class="back-link" href="{{ '/cadeaux/' ~ gift.id if editing else '/' }}">{{ icon("back") }} Annuler</a>
+
+<form class="card stack gift-form" method="post" enctype="multipart/form-data"
+      action="{{ '/cadeaux/' ~ gift.id ~ '/modifier' if editing else '/cadeaux' }}" novalidate>
+  {{ csrf(csrf_token) }}
+  <h1>{{ "Modifier le cadeau" if editing else "Ajouter un cadeau" }}</h1>
+
+  <div class="field {% if errors.name %}field--error{% endif %}">
+    <label for="name">Cadeau <span class="required" aria-hidden="true">*</span></label>
+    <input id="name" name="name" type="text" maxlength="150" required value="{{ values.name or '' }}"
+           {% if errors.name %}aria-describedby="name-error" aria-invalid="true"{% endif %}>
+    {{ field_error(errors, "name") }}
+  </div>
+
+  {% if editing %}
+  <p class="readonly-field"><span class="muted">Pour qui ?</span> <strong>{{ gift.recipient.first_name }}</strong></p>
+  {% else %}
+  <div class="field">
+    <label class="switch" for="suggest">
+      <input id="suggest" name="suggest" type="checkbox" value="1" {% if values.suggest %}checked{% endif %} {% if not others %}disabled{% endif %}>
+      <span class="switch__track" aria-hidden="true"></span>
+      <span>Suggérer pour quelqu'un d'autre</span>
+    </label>
+  </div>
+
+  <p class="readonly-field for-me"><span class="muted">Pour qui ?</span> <strong>{{ user.first_name }}</strong> (moi)</p>
+
+  <div class="for-other stack">
+    <div class="field {% if errors.recipient_id %}field--error{% endif %}">
+      <label for="recipient_id">Pour qui ? <span class="required" aria-hidden="true">*</span></label>
+      <select id="recipient_id" name="recipient_id" {% if errors.recipient_id %}aria-describedby="recipient_id-error" aria-invalid="true"{% endif %}>
+        <option value="">Choisir une personne</option>
+        {% for m in others %}
+        <option value="{{ m.id }}" {% if values.recipient_id == m.id %}selected{% endif %}>{{ m.first_name }}</option>
+        {% endfor %}
+      </select>
+      {{ field_error(errors, "recipient_id") }}
+    </div>
+    <p class="readonly-field"><span class="muted">Idée de :</span> <strong>{{ user.first_name }}</strong>
+      <span class="muted">· la personne choisie ne verra pas cette idée.</span></p>
+  </div>
+  {% endif %}
+
+  <div class="field {% if errors.price %}field--error{% endif %}">
+    <label for="price">Prix (€)</label>
+    <input id="price" name="price" type="text" inputmode="decimal" placeholder="39,99" value="{{ values.price or '' }}"
+           {% if errors.price %}aria-describedby="price-error" aria-invalid="true"{% endif %}>
+    {{ field_error(errors, "price") }}
+  </div>
+
+  <div class="field {% if errors.url %}field--error{% endif %}">
+    <label for="url">Lien</label>
+    <input id="url" name="url" type="url" placeholder="https://…" value="{{ values.url or '' }}"
+           {% if errors.url %}aria-describedby="url-error" aria-invalid="true"{% endif %}>
+    {{ field_error(errors, "url") }}
+  </div>
+
+  <div class="field {% if errors.image %}field--error{% endif %}">
+    <label for="image">Image</label>
+    {% if editing and gift.image_path %}
+    <div class="current-image">
+      <img src="/media/{{ gift.image_path }}" alt="Image actuelle">
+      <label class="check"><input type="checkbox" name="remove_image" value="1"> Retirer l'image</label>
+    </div>
+    {% endif %}
+    <input id="image" name="image" type="file" accept="image/jpeg,image/png,image/webp">
+    <p class="field__help">JPEG, PNG ou WebP, 5 Mo maximum.</p>
+    {{ field_error(errors, "image") }}
+  </div>
+
+  <div class="actions actions--end">
+    <a class="btn btn--ghost" href="{{ '/cadeaux/' ~ gift.id if editing else '/' }}">Annuler</a>
+    <button class="btn btn--primary" type="submit">Enregistrer</button>
+  </div>
+</form>
+{% endblock %}

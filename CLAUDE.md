@@ -1,56 +1,65 @@
-# CLAUDE.md — Liste de Noël
+# Liste de Noël — consignes pour Claude Code
 
-Site familial de listes de cadeaux de Noël, qui remplace une application Power Apps. Moins de 15 utilisateurs. Toute la communication se fait **en français**.
+Site web familial de listes de cadeaux de Noël (moins de 15 personnes), qui remplace une application Power Apps. Lukas est le seul développeur et valide chaque changement. On échange en français, et le code visible par les utilisateurs (textes, messages d'erreur) est en français.
 
-## À lire avant toute tâche
-1. `docs/02-regles-metier.md` : règles `RG-xx`, en particulier la **matrice de confidentialité RG-30**
-2. La user story concernée dans `docs/user-stories/`
-3. `docs/06-points-ouverts.md` : ne jamais coder une règle encore ouverte sans demander
-4. `docs/03-modele-donnees.md` et `docs/04-architecture.md` si la tâche touche la base ou la structure
+## Principe central : la surprise
 
-## Méthode de travail (obligatoire)
+Un membre ne doit **jamais** pouvoir découvrir, sur sa propre liste, les suggestions qu'on lui a faites, les commentaires, les réservations ou les achats. C'est la matrice **RG-30** de [docs/02-regles-metier.md](docs/02-regles-metier.md).
 
-Lukas applique la « méthode Karpathy » : petits incréments relus, rien de généré n'est fiable tant qu'il n'a pas tourné.
+- La règle s'applique **côté serveur**, pas seulement à l'affichage : une URL tapée à la main ne doit rien révéler.
+- Toute lecture de cadeaux, commentaires ou réservations côté membre passe par `app/services/visibility.py`. Aucune requête directe dans un router.
+- Tout changement qui touche cadeaux, commentaires ou réservations s'accompagne de tests dans `tests/test_visibility.py`.
+- L'admin ne voit jamais les commentaires ni les réservations (RG-23).
 
-1. **Questions d'abord.** Si une règle, un comportement ou un choix technique est ambigu ou absent des docs, **pose la question avant de coder**. Ne devine jamais une règle métier. Ne prends aucune décision d'architecture seul : propose 2 ou 3 options avec leurs compromis.
-2. **Petits incréments.** Une user story est découpée en incréments de quelques fichiers au maximum (ex. : modèle + service + tests, puis router + template). Annonce le découpage et attends la validation avant de commencer.
-3. **Tests à chaque modification.** Un hook relance `pytest` après chaque modification de fichier. Écris les tests en même temps que le code : chaque critère d'acceptation et chaque `RG-xx` touchée a au moins un test. Ne présente jamais du code comme fonctionnel sans l'avoir exécuté.
-4. **Résumé du diff à chaque fin d'incrément** (commande `/diff-summary`) : fichiers touchés, ce qui change et pourquoi, tests ajoutés, résultat des tests, points d'attention. **Puis stop** : attends le feu vert de Lukas avant l'incrément suivant.
-5. **Documentation à jour quand les tests sont verts** (commande `/update-docs`) : backlog, journal, règles ou modèle si ça a changé, points ouverts tranchés.
-6. **Git** : pas de commit ni de push sans demande explicite.
-
-## Règle n° 1 : la surprise
-
-Un membre ne doit **jamais** voir, sur sa propre liste ou via une URL forgée : les suggestions qu'on lui a faites, les commentaires de ses cadeaux, les réservations et achats.
-
-- Toute lecture de cadeaux, commentaires ou réservations côté membre passe par `app/services/visibility.py`. Pas de requête directe dans un router.
-- Le filtrage se fait **côté serveur** dans la requête, jamais en masquant dans le template.
-- Chaque nouvel écran ou endpoint exposant ces données ajoute un test dans `tests/test_visibility.py` qui vérifie que le destinataire ne reçoit rien, y compris les fragments HTMX.
-- Les messages de retour (suppression, erreurs) ne doivent rien révéler au destinataire (ex. RG-22 : même message en suppression définitive ou douce).
-
-## Rôles
-- `member` : toute l'appli sauf `/admin`. Dépendance `current_member`.
-- `admin` : compte distinct, **uniquement** `/admin`. Il n'est jamais destinataire, auteur, réservant ni commentateur. Dépendance `current_admin`.
-
-## Stack et commandes
-
-FastAPI · Jinja2 + HTMX · SQLite + SQLAlchemy 2 + Alembic · Argon2 · pytest · ruff · uv
+## Commandes
 
 ```bash
-uv sync                                  # dépendances
-uv run uvicorn app.main:app --reload     # serveur de dev
+uv sync                                  # installe les dépendances
 uv run pytest -q                         # tests
-uv run ruff check . && uv run ruff format .
+uv run ruff check .                      # lint
+uv run ruff format .                     # formatage
+uv run uvicorn app.main:app --reload     # lance le site sur http://localhost:8000
+uv run python -m app.cli create-admin    # crée le compte admin
 uv run alembic revision --autogenerate -m "..."   # nouvelle migration
-uv run alembic upgrade head
-uv run python -m app.cli create-admin
 ```
 
-## Conventions
-- Code, noms de tables et de colonnes en **anglais** ; écrans, messages, docs et commits en **français**.
-- Règles métier dans `app/services/`, sans dépendance HTTP ; routers minces.
-- Toute modification de schéma passe par une migration Alembic, et `docs/03-modele-donnees.md` est mis à jour en même temps.
-- Tests : base SQLite en mémoire, fixtures `alice`, `bob`, `chloe` (membres) et `admin`. Nommage `test_<us>_<comportement>` (ex. `test_us12_destinataire_ne_voit_pas_suggestion`).
-- Dates affichées au format `07/12/2025 17:00`, prix au format `39,99 €`, fuseau Europe/Paris.
-- Pas de JavaScript maison au-delà de HTMX sans validation.
-- Le design sera travaillé à part : HTML sémantique simple et propre, sans framework CSS imposé tant que ce n'est pas décidé.
+Tout passe par `uv` : ne jamais appeler `python`, `python3` ou `pip` directement (sur ce poste Windows, `python3` est le raccourci du Microsoft Store et ne fonctionne pas).
+
+## Méthode de travail
+
+- **Petits incréments validés.** Un incrément = tests + code, puis résumé du diff, puis attente du feu vert de Lukas avant le suivant. Pas de livraison « en une fois » sauf demande explicite.
+- **Poser les questions avant de coder.** En cas d'ambiguïté sur une règle, s'arrêter et demander, plutôt que choisir à la place de Lukas.
+- **Un test par critère d'acceptation** au minimum. Les tests citent les `RG-xx` qu'ils couvrent.
+- **La doc ne se met à jour qu'avec des tests verts** (`/update-docs`).
+- Commandes : `/story US-xx`, `/diff-summary`, `/update-docs`.
+- Un hook relance `uv run pytest` après chaque modification de code. S'il échoue, corriger avant de continuer.
+
+## Architecture
+
+Stack : Python 3.12+, FastAPI, Jinja2 + HTMX, SQLite + SQLAlchemy 2 + Alembic, Argon2, pytest, ruff. Détail et arborescence dans [docs/04-architecture.md](docs/04-architecture.md).
+
+- **Les services portent les règles métier** (`app/services/`, sans HTTP, testables sans serveur). Les routers ne font que HTTP + templates.
+- **Contrôle d'accès par dépendances FastAPI** : `current_member` et `current_admin` (`app/security.py`). Un membre n'accède jamais à `/admin`, l'admin n'accède jamais aux écrans membres (RG-09).
+- **Protection CSRF** sur tous les formulaires POST.
+- **Pas de JavaScript maison** au-delà de HTMX, sauf besoin justifié et validé.
+- **Tout changement de schéma passe par une migration Alembic** et une mise à jour de `docs/03-modele-donnees.md`.
+- Interface : charger le skill `design-site` avant de toucher un template ou le CSS.
+
+## Documentation
+
+| Document | À lire quand |
+|---|---|
+| [docs/02-regles-metier.md](docs/02-regles-metier.md) | Avant tout changement fonctionnel (règles `RG-xx`) |
+| [docs/user-stories/](docs/user-stories/) | Pour implémenter une story (`US-xx`) |
+| [docs/06-points-ouverts.md](docs/06-points-ouverts.md) | Choix appliqués par défaut, à confirmer par Lukas (`PO-xx`) |
+| [docs/05-backlog.md](docs/05-backlog.md) | Statut des lots et des stories |
+| [docs/07-journal.md](docs/07-journal.md) | Historique des incréments livrés |
+| [docs/03-modele-donnees.md](docs/03-modele-donnees.md) | Schéma de la base |
+
+Une règle qui change se modifie à trois endroits : `02-regles-metier.md`, le code et les tests.
+
+## À ne pas faire
+
+- Ne pas lire `.env` ni `data/` (base réelle et clé de session).
+- Ne pas faire `git push`. `git add` et `git commit` seulement sur demande.
+- Ne pas ajouter de dépendance sans en parler d'abord.

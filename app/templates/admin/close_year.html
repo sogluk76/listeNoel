@@ -1,0 +1,26 @@
+{% extends "admin/base.html" %}
+{% from "macros.html" import csrf %}
+{% set section = "close" %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>Clôturer l'année</h1>
+    <p class="muted">À faire après Noël, pour repartir sur des listes propres.</p>
+  </div>
+</div>
+
+<form class="card card--form stack" method="post" action="/admin/cloture">
+  {{ csrf(csrf_token) }}
+  {% if error %}<p class="alert alert--error" role="alert">{{ error }}</p>{% endif %}
+  <p><strong>{{ count }}</strong> cadeau{{ "x" if count > 1 else "" }} {{ "seront archivés" if count > 1 else "sera archivé" }} (cadeaux offerts ou retirés).
+     Les autres cadeaux restent dans les listes.</p>
+  <div class="field">
+    <label for="year">Année</label>
+    <input id="year" name="year" type="number" min="2000" max="2100" value="{{ year }}" required>
+  </div>
+  <label class="check"><input type="checkbox" name="confirm" value="1" required> Je confirme la clôture. Les cadeaux archivés ne seront plus visibles.</label>
+  <div class="actions actions--end">
+    <button class="btn btn--primary" type="submit">Clôturer l'année</button>
+  </div>
+</form>
+{% endblock %}

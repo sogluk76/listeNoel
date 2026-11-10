@@ -1,0 +1,125 @@
+/* ==========================================================
+   Liste de Noël — tokens de design
+   Seul fichier autorisé à contenir des valeurs brutes.
+   ========================================================== */
+
+@font-face {
+  font-family: "Fraunces";
+  src: url("../fonts/fraunces-variable.woff2") format("woff2");
+  font-weight: 400 700;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Nunito Sans";
+  src: url("../fonts/nunito-sans-variable.woff2") format("woff2");
+  font-weight: 400 800;
+  font-style: normal;
+  font-display: swap;
+}
+
+:root {
+  color-scheme: light dark;
+
+  /* Couleurs */
+  --c-bg: #FBF7F0;
+  --c-surface: #FFFFFF;
+  --c-surface-2: #F4EEE3;
+  --c-ink: #1F2A24;
+  --c-ink-soft: #5B6660;
+  --c-line: #E8E0D2;
+
+  --c-pine: #1E4D3A;
+  --c-pine-strong: #153829;
+  --c-pine-soft: #E4EFE8;
+  --c-berry: #B3263E;
+  --c-berry-strong: #8F1C30;
+  --c-berry-soft: #F8E3E6;
+  --c-gold: #C99A2E;
+  --c-gold-soft: #F7EDD3;
+  --c-on-accent: #FFFFFF;   /* texte sur pine/berry */
+
+  /* Teintes des avatars placeholder (choisies par hash du prénom) */
+  --c-on-avatar: #FFFFFF;
+  --avatar-1: #1E4D3A;
+  --avatar-2: #B3263E;
+  --avatar-3: #8A6415;
+  --avatar-4: #2F5D73;
+  --avatar-5: #6B4E7A;
+  --avatar-6: #8A5A3C;
+
+  /* Typographie */
+  --font-display: "Fraunces", Georgia, "Times New Roman", serif;
+  --font-body: "Nunito Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --fs-sm: 0.875rem;   /* 14 */
+  --fs-md: 1rem;       /* 16 */
+  --fs-lg: 1.125rem;   /* 18 */
+  --fs-xl: 1.375rem;   /* 22 */
+  --fs-2xl: 1.75rem;   /* 28 */
+  --fs-3xl: 2.25rem;   /* 36 */
+  --lh-tight: 1.2;
+  --lh-body: 1.55;
+
+  /* Espacements (base 4 px) */
+  --sp-1: 0.25rem;
+  --sp-2: 0.5rem;
+  --sp-3: 0.75rem;
+  --sp-4: 1rem;
+  --sp-5: 1.5rem;
+  --sp-6: 2rem;
+  --sp-7: 2.5rem;
+  --sp-8: 3rem;
+
+  /* Formes */
+  --r-sm: 8px;
+  --r-md: 14px;
+  --r-lg: 22px;
+  --r-pill: 999px;
+
+  /* Ombres teintées */
+  --shadow-1: 0 1px 2px rgb(31 42 36 / 0.06), 0 4px 14px rgb(31 42 36 / 0.06);
+  --shadow-2: 0 2px 6px rgb(31 42 36 / 0.08), 0 12px 32px rgb(31 42 36 / 0.12);
+  --focus-ring: 0 0 0 3px var(--c-bg), 0 0 0 6px var(--c-gold);
+
+  /* Mouvement */
+  --dur-fast: 150ms;
+  --dur-base: 220ms;
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+
+  /* Mise en page */
+  --w-app: 720px;
+  --w-admin: 1100px;
+  --tap: 44px;
+  --header-h: 60px;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --c-bg: #0F1A16;
+    --c-surface: #17241F;
+    --c-surface-2: #1E2E28;
+    --c-ink: #EEF2EC;
+    --c-ink-soft: #A8B5AE;
+    --c-line: #2A3B34;
+
+    --c-pine: #4E9C78;
+    --c-pine-strong: #6BB592;
+    --c-pine-soft: #1B3329;
+    --c-berry: #E0566D;
+    --c-berry-strong: #EC7B8D;
+    --c-berry-soft: #3A1E24;
+    --c-gold: #E0B85A;
+    --c-gold-soft: #3A3120;
+    --c-on-accent: #0F1A16;
+
+    --shadow-1: 0 1px 2px rgb(0 0 0 / 0.3), 0 4px 14px rgb(0 0 0 / 0.25);
+    --shadow-2: 0 2px 6px rgb(0 0 0 / 0.35), 0 12px 32px rgb(0 0 0 / 0.4);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --dur-fast: 0ms;
+    --dur-base: 0ms;
+  }
+}

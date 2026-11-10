@@ -1,52 +1,91 @@
-from fastapi import FastAPI, HTTPException, Request
-from fastapi.responses import FileResponse
+"""Création de l'application FastAPI."""
+
+from contextlib import asynccontextmanager
+from pathlib import Path
+
+from fastapi import Depends, FastAPI, Request
 from fastapi.staticfiles import StaticFiles
+from starlette.exceptions import HTTPException as StarletteHTTPException
 from starlette.middleware.sessions import SessionMiddleware
-from starlette.responses import RedirectResponse
 
 from app.config import settings
-from app.routers.admin import router as admin_router
-from app.routers.auth import router as auth_router
-from app.routers.comments import router as comments_router
-from app.routers.gifts import router as gifts_router
-from app.routers.people import router as people_router
-from app.routers.profile import router as profile_router
-from app.routers.reservations import router as reservations_router
-from app.security import RedirectToLogin
+from app.db import run_migrations
+from app.errors import Forbidden, NotAuthenticated, NotFound
+from app.routers import admin, auth, comments, gifts, people, profile
+from app.security import csrf_protect
+from app.web import htmx_redirect, redirect, render
 
-app = FastAPI(title="Liste de Noël")
+STATIC_DIR = Path(__file__).parent / "static"
 
-app.add_middleware(
-    SessionMiddleware,
-    secret_key=settings.secret_key,
-    max_age=settings.session_max_age_seconds,
-    same_site="lax",
-    https_only=settings.session_https_only,
-)
-
-app.mount("/static", StaticFiles(directory="app/static"), name="static")
-
-app.include_router(admin_router)
-app.include_router(auth_router)
-app.include_router(comments_router)
-app.include_router(gifts_router)
-app.include_router(people_router)
-app.include_router(profile_router)
-app.include_router(reservations_router)
+ERRORS = {
+    403: ("Accès refusé", "Tu n'as pas accès à cette page."),
+    404: ("Page introuvable", "Cette page n'existe pas ou n'est plus disponible."),
+}
 
 
-@app.exception_handler(RedirectToLogin)
-async def _handle_redirect_to_login(request: Request, exc: RedirectToLogin) -> RedirectResponse:
-    return RedirectResponse(url=exc.location, status_code=303)
+@asynccontextmanager
+async def lifespan(_app: FastAPI):
+    if not settings.testing:
+        run_migrations()
+    yield
 
 
-@app.get("/media/{filename}")
-def media_file(filename: str):
-    """Sert les photos de profil (RG-17). Route dédiée (et non un montage statique figé au
-    démarrage) pour que `media_dir` reste reconfigurable, notamment par les tests.
-    """
-    media_root = settings.media_dir.resolve()
-    chemin = (media_root / filename).resolve()
-    if not chemin.is_relative_to(media_root) or not chemin.is_file():
-        raise HTTPException(status_code=404)
-    return FileResponse(chemin)
+def _error_page(request: Request, status_code: int):
+    title, message = ERRORS.get(status_code, ("Erreur", "Une erreur est survenue."))
+    is_admin_area = request.url.path.startswith("/admin")
+    return render(
+        request,
+        "error.html",
+        {"title": title, "message": message, "code": status_code, "is_admin_area": is_admin_area},
+        status_code=status_code,
+    )
+
+
+def create_app() -> FastAPI:
+    app = FastAPI(
+        title="Liste de Noël",
+        lifespan=lifespan,
+        dependencies=[Depends(csrf_protect)],
+        docs_url=None,
+        redoc_url=None,
+        openapi_url=None,
+    )
+    app.add_middleware(
+        SessionMiddleware,
+        secret_key=settings.resolved_secret_key(),
+        session_cookie="noel_session",
+        max_age=settings.session_days * 24 * 3600,
+        same_site="lax",
+        https_only=settings.secure_cookies,
+    )
+
+    settings.media_dir.mkdir(parents=True, exist_ok=True)
+    app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
+    app.mount("/media", StaticFiles(directory=settings.media_dir), name="media")
+
+    for module in (auth, people, gifts, comments, profile, admin):
+        app.include_router(module.router)
+
+    @app.exception_handler(NotAuthenticated)
+    async def _not_authenticated(request: Request, exc: NotAuthenticated):
+        target = "/admin/login" if exc.admin else "/login"
+        if request.headers.get("HX-Request") == "true":
+            return htmx_redirect(target)
+        return redirect(target)
+
+    @app.exception_handler(Forbidden)
+    async def _forbidden(request: Request, _exc: Forbidden):
+        return _error_page(request, 403)
+
+    @app.exception_handler(NotFound)
+    async def _not_found(request: Request, _exc: NotFound):
+        return _error_page(request, 404)
+
+    @app.exception_handler(StarletteHTTPException)
+    async def _http_error(request: Request, exc: StarletteHTTPException):
+        return _error_page(request, exc.status_code)
+
+    return app
+
+
+app = create_app()

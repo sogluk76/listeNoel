@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% from "macros.html" import icon, csrf %}
+{% block title %}Commentaires · {{ gift.name }}{% endblock %}
+{% block content %}
+<a class="back-link" href="/cadeaux/{{ gift.id }}">{{ icon("back") }} {{ gift.name }}</a>
+
+<div class="page-head">
+  <div>
+    <h1>Commentaires</h1>
+    <p class="muted">{{ gift.name }} · pour {{ gift.recipient.first_name }}, qui ne voit pas cette discussion.</p>
+  </div>
+</div>
+
+<section class="card chat-card">
+  <div id="fil" hx-get="/cadeaux/{{ gift.id }}/commentaires/fil"
+       hx-trigger="every {{ settings.comments_poll_seconds }}s" hx-swap="innerHTML" aria-live="polite">
+    {% include "_comment_thread.html" %}
+  </div>
+
+  <form class="chat-form" method="post" action="/cadeaux/{{ gift.id }}/commentaires"
+        hx-post="/cadeaux/{{ gift.id }}/commentaires" hx-target="#fil" hx-swap="innerHTML"
+        hx-on::after-request="if (event.detail.successful) this.reset()">
+    {{ csrf(csrf_token) }}
+    <label class="sr-only" for="content">Ton message</label>
+    <textarea id="content" name="content" rows="2" maxlength="1000" required placeholder="Écrire un message…"></textarea>
+    <button class="btn btn--primary" type="submit" aria-label="Envoyer">{{ icon("send") }}</button>
+  </form>
+</section>
+{% endblock %}

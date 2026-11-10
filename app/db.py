@@ -1,44 +1,50 @@
-from collections.abc import Generator
+"""Connexion à la base SQLite."""
+
+from collections.abc import Iterator
 from pathlib import Path
 
 from sqlalchemy import create_engine, event
-from sqlalchemy.engine import Engine
-from sqlalchemy.orm import Session, sessionmaker
-from sqlalchemy.pool import StaticPool
+from sqlalchemy.engine import Engine, make_url
+from sqlalchemy.orm import DeclarativeBase, Session, sessionmaker
 
-from app.config import settings
-
-
-def database_url(database_path: Path) -> str:
-    if str(database_path) == ":memory:":
-        return "sqlite:///:memory:"
-    database_path.parent.mkdir(parents=True, exist_ok=True)
-    return f"sqlite:///{database_path}"
+from app.config import BASE_DIR, settings
 
 
-def create_db_engine(database_url: str) -> Engine:
-    # SQLite :memory: perd son état à chaque nouvelle connexion : avec FastAPI, les
-    # dépendances synchrones s'exécutent dans un thread à part, donc sans StaticPool
-    # (une seule connexion partagée) chaque requête verrait une base vide.
-    extra_kwargs = {"poolclass": StaticPool} if database_url == "sqlite:///:memory:" else {}
-    engine = create_engine(database_url, connect_args={"check_same_thread": False}, **extra_kwargs)
-
-    @event.listens_for(engine, "connect")
-    def _enable_foreign_keys(dbapi_connection, _connection_record):
-        cursor = dbapi_connection.cursor()
-        cursor.execute("PRAGMA foreign_keys = ON")
-        cursor.close()
-
-    return engine
+class Base(DeclarativeBase):
+    pass
 
 
-engine = create_db_engine(database_url(settings.database_path))
-SessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False)
+@event.listens_for(Engine, "connect")
+def _enable_foreign_keys(dbapi_connection, _record) -> None:
+    cursor = dbapi_connection.cursor()
+    cursor.execute("PRAGMA foreign_keys=ON")
+    cursor.close()
 
 
-def get_db() -> Generator[Session, None, None]:
+def _ensure_sqlite_dir(url: str) -> None:
+    database = make_url(url).database
+    if database and database != ":memory:":
+        Path(database).parent.mkdir(parents=True, exist_ok=True)
+
+
+_ensure_sqlite_dir(settings.database_url)
+engine = create_engine(settings.database_url, connect_args={"check_same_thread": False})
+SessionLocal = sessionmaker(bind=engine, expire_on_commit=False)
+
+
+def get_db() -> Iterator[Session]:
     db = SessionLocal()
     try:
         yield db
     finally:
         db.close()
+
+
+def run_migrations() -> None:
+    """Applique les migrations Alembic jusqu'à la dernière version."""
+    from alembic import command
+    from alembic.config import Config
+
+    cfg = Config(str(BASE_DIR / "alembic.ini"))
+    cfg.set_main_option("script_location", str(BASE_DIR / "migrations"))
+    command.upgrade(cfg, "head")

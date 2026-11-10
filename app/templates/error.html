@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+{% block title %}{{ title }} · Liste de Noël{% endblock %}
+{% block header %}{% endblock %}
+{% block page_class %}page--center{% endblock %}
+{% block content %}
+<section class="card card--narrow text-center">
+  <p class="error-code">{{ code }}</p>
+  <h1>{{ title }}</h1>
+  <p class="muted">{{ message }}</p>
+  <p><a class="btn btn--primary" href="{{ '/admin' if is_admin_area else '/' }}">Retour à l'accueil</a></p>
+</section>
+{% endblock %}

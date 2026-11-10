@@ -1,0 +1,36 @@
+{% extends "admin/base.html" %}
+{% from "macros.html" import avatar %}
+{% set section = "members" %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>Comptes</h1>
+    <p class="muted">{{ members | length }} membre{{ "s" if members | length > 1 else "" }}</p>
+  </div>
+  <a class="btn btn--primary" href="/admin/membres/nouveau">Nouveau membre</a>
+</div>
+
+{% if not members %}
+<p class="card muted">Aucun membre pour l'instant. Crée le premier compte.</p>
+{% else %}
+<div class="card table-wrap">
+  <table class="table">
+    <thead><tr><th>Membre</th><th>Statut</th><th>Créé le</th><th><span class="sr-only">Actions</span></th></tr></thead>
+    <tbody>
+      {% for m in members %}
+      <tr>
+        <td><span class="cell-who">{{ avatar(m, "sm") }} {{ m.first_name }}</span></td>
+        <td>
+          {% if not m.is_active %}<span class="pill pill--removed">Désactivé</span>
+          {% elif m.is_locked(now) %}<span class="pill pill--bought">Bloqué</span>
+          {% else %}<span class="pill pill--available">Actif</span>{% endif %}
+        </td>
+        <td>{{ m.created_at | d }}</td>
+        <td class="text-right"><a href="/admin/membres/{{ m.id }}">Gérer</a></td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endif %}
+{% endblock %}

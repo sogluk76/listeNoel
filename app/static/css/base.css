@@ -1,0 +1,223 @@
+/* Base : reset léger, typographie, mise en page globale */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  margin: 0;
+  min-height: 100dvh;
+  background: var(--c-bg);
+  color: var(--c-ink);
+  font-family: var(--font-body);
+  font-size: var(--fs-md);
+  line-height: var(--lh-body);
+}
+
+h1,
+h2,
+h3 {
+  margin: 0;
+  font-family: var(--font-display);
+  font-weight: 600;
+  line-height: var(--lh-tight);
+  letter-spacing: -0.01em;
+}
+
+h1 { font-size: var(--fs-2xl); }
+h2 { font-size: var(--fs-xl); }
+h3 { font-size: var(--fs-lg); }
+
+p { margin: 0; }
+
+ul,
+ol {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+a {
+  color: var(--c-pine);
+  text-underline-offset: 3px;
+}
+
+a:hover { color: var(--c-pine-strong); }
+
+img { max-width: 100%; display: block; }
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+  color: inherit;
+}
+
+:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+  border-radius: var(--r-sm);
+}
+
+.icon {
+  width: 1.25em;
+  height: 1.25em;
+  flex: none;
+}
+
+/* Utilitaires */
+.muted { color: var(--c-ink-soft); }
+.text-center { text-align: center; }
+.text-right { text-align: right; }
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.stack > * + * { margin-top: var(--sp-4); }
+
+/* Page */
+.page {
+  width: 100%;
+  max-width: var(--w-app);
+  margin: 0 auto;
+  padding: var(--sp-5) var(--sp-4) var(--sp-8);
+}
+
+.page > * + * { margin-top: var(--sp-5); }
+
+.page--center {
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.admin .page { max-width: var(--w-admin); }
+
+.page-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-4);
+}
+
+.page-head__who {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-4);
+  min-width: 0;
+}
+
+.back-link {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-1);
+  min-height: var(--tap);
+  margin-left: calc(var(--sp-1) * -1);
+  color: var(--c-ink-soft);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.back-link:hover { color: var(--c-ink); }
+
+.back-link + * { margin-top: var(--sp-2); }
+
+/* En-tête */
+.app-header {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background: color-mix(in srgb, var(--c-bg) 88%, transparent);
+  backdrop-filter: blur(10px);
+  border-bottom: 1px solid var(--c-line);
+}
+
+.app-header__inner {
+  max-width: var(--w-app);
+  min-height: var(--header-h);
+  margin: 0 auto;
+  padding: 0 var(--sp-4);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-3);
+}
+
+.admin .app-header__inner { max-width: var(--w-admin); flex-wrap: wrap; padding-block: var(--sp-2); }
+
+.app-header__brand {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+  min-height: var(--tap);
+  color: var(--c-ink);
+  font-family: var(--font-display);
+  font-size: var(--fs-lg);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.app-header__brand .icon { color: var(--c-berry); }
+
+.app-header__actions {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+}
+
+.app-header__profile {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: var(--tap);
+  min-height: var(--tap);
+  border-radius: var(--r-pill);
+  text-decoration: none;
+}
+
+.admin-nav {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sp-1) var(--sp-4);
+}
+
+.admin-nav a {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--tap);
+  color: var(--c-ink-soft);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.admin-nav a[aria-current="page"] {
+  color: var(--c-pine);
+  box-shadow: inset 0 -2px 0 var(--c-pine);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .page > * {
+    animation: rise var(--dur-base) var(--ease-out) both;
+  }
+}
+
+@keyframes rise {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: none; }
+}

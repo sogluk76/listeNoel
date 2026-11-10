@@ -1,248 +1,271 @@
-from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile
+"""Cadeaux : liste d'une personne, détail, ajout, modification, suppression,
+réservation et achat (US-11 à US-19)."""
+
+from fastapi import APIRouter, Depends, File, Form, Request, UploadFile
 from sqlalchemy.orm import Session
-from starlette.responses import RedirectResponse
 
 from app.db import get_db
+from app.errors import Invalid
 from app.models import User
-from app.security import current_member, get_csrf_token, verify_csrf
-from app.services.gifts import (
-    NotGiftAuthorError,
-    create_gift,
-    delete_gift,
-    get_editable_gift,
-    search_and_sort_gifts,
-    update_gift,
-)
-from app.services.users import MemberNotFoundError, get_active_member, list_other_active_members
-from app.services.visibility import GiftNotFoundError, get_visible_gift, visible_gifts_for
-from app.templating import templates
+from app.security import current_member, flash
+from app.services import gifts as gifts_service
+from app.services import images, reservations, visibility
+from app.services import users as users_service
+from app.web import fragment, is_htmx, redirect, render
 
 router = APIRouter()
 
+SORTS = (visibility.SORT_NAME, visibility.SORT_PRICE, visibility.SORT_STATUS)
+
+
+def _to_int(value: str | None) -> int | None:
+    try:
+        return int(value) if value not in (None, "") else None
+    except ValueError:
+        return None
+
+
+# --- Liste de cadeaux d'une personne (US-13, US-14) --------------------------
+
 
 @router.get("/personnes/{person_id}")
-def liste_cadeaux(
-    person_id: int,
+def person_gifts(
     request: Request,
+    person_id: int,
     q: str = "",
-    tri: str = "nom",
-    sens: str = "croissant",
-    membre: User = Depends(current_member),
+    tri: str = visibility.SORT_NAME,
+    sens: str = "asc",
+    user: User = Depends(current_member),
     db: Session = Depends(get_db),
 ):
-    """RG-30 (US-13), RG-24/RG-25 (US-14) : liste de cadeaux d'une personne, filtrée
-    selon le viewer, puis recherchée/triée. Le tri par statut n'a pas de sens sur sa
-    propre liste (aucun cadeau n'y a de statut) : un `tri=statut` forgé y est ignoré.
-    """
-    try:
-        personne = get_active_member(db, person_id)
-    except MemberNotFoundError as exc:
-        raise HTTPException(status_code=404) from exc
+    person = visibility.get_person(db, person_id)
+    is_me = person.id == user.id
+    if tri not in SORTS or (is_me and tri == visibility.SORT_STATUS):
+        tri = visibility.SORT_NAME
+    views = visibility.list_gifts(db, user, person, q, tri, descending=(sens == "desc"))
+    context = {
+        "person": person,
+        "is_me": is_me,
+        "views": views,
+        "q": q,
+        "tri": tri,
+        "sens": "desc" if sens == "desc" else "asc",
+    }
+    if is_htmx(request):
+        return fragment(request, "_gift_items.html", context)
+    return render(request, "gift_list.html", context, user=user)
 
-    est_ma_liste = membre.id == personne.id
-    tri_effectif = "nom" if (est_ma_liste and tri == "statut") else tri
 
-    cadeaux = search_and_sort_gifts(
-        visible_gifts_for(db, membre, personne), q=q, sort=tri_effectif, direction=sens
-    )
+# --- Ajout (US-11, US-12) ----------------------------------------------------
 
-    return templates.TemplateResponse(
+
+def _form_page(request, db, user, *, gift=None, values=None, errors=None, status_code=200):
+    others = [m for m in users_service.active_members(db) if m.id != user.id]
+    return render(
         request,
-        "gifts/liste.html",
-        {
-            "csrf_token": get_csrf_token(request),
-            "personne": personne,
-            "cadeaux": cadeaux,
-            "q": q,
-            "tri": tri_effectif,
-            "sens": sens,
-            "est_ma_liste": est_ma_liste,
-        },
+        "gift_form.html",
+        {"gift": gift, "values": values or {}, "errors": errors or {}, "others": others},
+        user=user,
+        status_code=status_code,
     )
 
 
 @router.get("/cadeaux/nouveau")
-def nouveau_cadeau_form(
-    request: Request, membre: User = Depends(current_member), db: Session = Depends(get_db)
-):
-    return templates.TemplateResponse(
-        request,
-        "gifts/nouveau.html",
-        {
-            "csrf_token": get_csrf_token(request),
-            "membre": membre,
-            "is_suggestion": False,
-            "autres_membres": list_other_active_members(db, membre),
-            "erreur": None,
-        },
-    )
-
-
-@router.get("/cadeaux/nouveau/destinataire")
-def destinataire_fragment(
+def new_gift_form(
     request: Request,
-    is_suggestion: str = "non",
-    membre: User = Depends(current_member),
+    pour: str = "",
+    user: User = Depends(current_member),
     db: Session = Depends(get_db),
 ):
-    """RG-18/RG-19 (US-12) : fragment HTMX affiché/masqué au basculement de l'interrupteur."""
-    return templates.TemplateResponse(
-        request,
-        "gifts/_destinataire.html",
-        {
-            "membre": membre,
-            "is_suggestion": is_suggestion == "oui",
-            "autres_membres": list_other_active_members(db, membre),
-        },
-    )
+    values = {}
+    target = users_service.get_active_member(db, _to_int(pour))
+    if target is not None and target.id != user.id:
+        values = {"suggest": True, "recipient_id": target.id}
+    return _form_page(request, db, user, values=values)
 
 
-@router.post("/cadeaux/nouveau", dependencies=[Depends(verify_csrf)])
-async def creer_cadeau(
+@router.post("/cadeaux")
+def create_gift(
     request: Request,
-    name: str = Form(...),
+    name: str = Form(""),
+    suggest: str = Form(""),
     price: str = Form(""),
     url: str = Form(""),
-    is_suggestion: str = Form("non"),
     recipient_id: str = Form(""),
     image: UploadFile | None = File(None),
-    membre: User = Depends(current_member),
+    user: User = Depends(current_member),
     db: Session = Depends(get_db),
 ):
-    image_bytes = await image.read() if image is not None and image.filename else None
-    try:
-        parsed_recipient_id = int(recipient_id) if recipient_id else None
-    except ValueError:
-        parsed_recipient_id = None
+    is_suggestion = bool(suggest)
+    data, errors = gifts_service.validate(name, price, url)
+    recipient = gifts_service.resolve_recipient(db, user, is_suggestion, _to_int(recipient_id))
+    if recipient is None:
+        errors["recipient_id"] = "Choisis la personne à qui tu penses."
 
-    try:
-        create_gift(
-            db,
-            membre,
-            name,
-            price=price or None,
-            url=url or None,
-            image=image_bytes,
-            is_suggestion=(is_suggestion == "oui"),
-            recipient_id=parsed_recipient_id,
-        )
-    except ValueError as exc:
-        return templates.TemplateResponse(
-            request,
-            "gifts/nouveau.html",
-            {
-                "csrf_token": get_csrf_token(request),
-                "membre": membre,
-                "is_suggestion": False,
-                "autres_membres": list_other_active_members(db, membre),
-                "erreur": str(exc),
-            },
-            status_code=400,
-        )
-    return RedirectResponse("/", status_code=303)
+    image_path = None
+    if not errors and images.has_file(image):
+        try:
+            image_path = images.save_image(image, "gifts", images.GIFT_MAX_SIDE)
+        except Invalid as exc:
+            errors["image"] = exc.message
+
+    if errors:
+        values = {
+            "name": name,
+            "price": price,
+            "url": url,
+            "suggest": is_suggestion,
+            "recipient_id": _to_int(recipient_id),
+        }
+        return _form_page(request, db, user, values=values, errors=errors, status_code=422)
+
+    gifts_service.create(db, user, recipient, data, image_path)
+    flash(request, "Cadeau ajouté.")
+    return redirect(f"/personnes/{recipient.id}")
+
+
+# --- Détail (US-15) ----------------------------------------------------------
 
 
 @router.get("/cadeaux/{gift_id}")
-def detail_cadeau(
-    gift_id: int,
+def gift_detail(
     request: Request,
-    membre: User = Depends(current_member),
+    gift_id: int,
+    user: User = Depends(current_member),
     db: Session = Depends(get_db),
 ):
-    """RG-30/RG-40 (US-15) : détail d'un cadeau."""
-    try:
-        vue = get_visible_gift(db, membre, gift_id)
-    except GiftNotFoundError as exc:
-        raise HTTPException(status_code=404) from exc
+    gift = visibility.get_gift(db, user, gift_id)
+    return render(request, "gift_detail.html", {"view": visibility.build_view(user, gift)}, user)
 
-    return templates.TemplateResponse(
-        request,
-        "gifts/detail.html",
-        {"csrf_token": get_csrf_token(request), "membre": membre, "vue": vue},
-    )
+
+# --- Modification (US-16) ----------------------------------------------------
 
 
 @router.get("/cadeaux/{gift_id}/modifier")
-def modifier_cadeau_form(
-    gift_id: int,
+def edit_gift_form(
     request: Request,
-    membre: User = Depends(current_member),
+    gift_id: int,
+    user: User = Depends(current_member),
     db: Session = Depends(get_db),
 ):
-    """RG-21 (US-16) : formulaire de modification, réservé à l'auteur."""
-    try:
-        gift = get_editable_gift(db, membre, gift_id)
-    except GiftNotFoundError as exc:
-        raise HTTPException(status_code=404) from exc
-    except NotGiftAuthorError as exc:
-        raise HTTPException(status_code=403) from exc
+    gift = visibility.get_gift(db, user, gift_id)
+    gifts_service.require_author(user, gift)
+    values = {
+        "name": gift.name,
+        "price": f"{gift.price:.2f}".replace(".", ",") if gift.price is not None else "",
+        "url": gift.url or "",
+    }
+    return _form_page(request, db, user, gift=gift, values=values)
 
-    return templates.TemplateResponse(
-        request,
-        "gifts/modifier.html",
-        {"csrf_token": get_csrf_token(request), "gift": gift, "erreur": None},
+
+@router.post("/cadeaux/{gift_id}/modifier")
+def edit_gift(
+    request: Request,
+    gift_id: int,
+    name: str = Form(""),
+    price: str = Form(""),
+    url: str = Form(""),
+    remove_image: str = Form(""),
+    image: UploadFile | None = File(None),
+    user: User = Depends(current_member),
+    db: Session = Depends(get_db),
+):
+    gift = visibility.get_gift(db, user, gift_id)
+    gifts_service.require_author(user, gift)
+    data, errors = gifts_service.validate(name, price, url)
+
+    new_image = None
+    if not errors and images.has_file(image):
+        try:
+            new_image = images.save_image(image, "gifts", images.GIFT_MAX_SIDE)
+        except Invalid as exc:
+            errors["image"] = exc.message
+
+    if errors:
+        values = {"name": name, "price": price, "url": url}
+        return _form_page(
+            request, db, user, gift=gift, values=values, errors=errors, status_code=422
+        )
+
+    gifts_service.update(db, user, gift, data, new_image, remove_image=bool(remove_image))
+    flash(request, "Cadeau modifié.")
+    return redirect(f"/cadeaux/{gift.id}")
+
+
+# --- Suppression (US-17) -----------------------------------------------------
+
+
+@router.post("/cadeaux/{gift_id}/supprimer")
+def delete_gift(
+    request: Request,
+    gift_id: int,
+    user: User = Depends(current_member),
+    db: Session = Depends(get_db),
+):
+    gift = visibility.get_gift(db, user, gift_id)
+    recipient_id = gift.recipient_id
+    gifts_service.delete_by_author(db, user, gift)
+    # Même message et même écran en suppression définitive ou douce (RG-22).
+    flash(request, "Cadeau supprimé.")
+    return redirect(f"/personnes/{recipient_id}")
+
+
+# --- Réservation et achat (US-18, US-19) -------------------------------------
+
+
+def _reservation_action(request: Request, db: Session, user: User, gift_id: int, action, done: str):
+    gift = visibility.get_gift_with_secrets(db, user, gift_id)
+    try:
+        action(db, user, gift)
+        flash(request, done)
+    except Invalid as exc:
+        flash(request, exc.message, "error")
+    return redirect(f"/cadeaux/{gift_id}")
+
+
+@router.post("/cadeaux/{gift_id}/reserver")
+def reserve(
+    request: Request,
+    gift_id: int,
+    user: User = Depends(current_member),
+    db: Session = Depends(get_db),
+):
+    return _reservation_action(
+        request, db, user, gift_id, reservations.reserve, "C'est noté, tu t'en occupes."
     )
 
 
-@router.post("/cadeaux/{gift_id}/modifier", dependencies=[Depends(verify_csrf)])
-async def modifier_cadeau(
-    gift_id: int,
+@router.post("/cadeaux/{gift_id}/annuler-reservation")
+def cancel_reservation(
     request: Request,
-    name: str = Form(...),
-    price: str = Form(""),
-    url: str = Form(""),
-    remove_image: str = Form("non"),
-    image: UploadFile | None = File(None),
-    membre: User = Depends(current_member),
+    gift_id: int,
+    user: User = Depends(current_member),
     db: Session = Depends(get_db),
 ):
-    image_bytes = await image.read() if image is not None and image.filename else None
-
-    try:
-        gift = update_gift(
-            db,
-            membre,
-            gift_id,
-            name,
-            price=price or None,
-            url=url or None,
-            image=image_bytes,
-            remove_image=(remove_image == "oui"),
-        )
-    except GiftNotFoundError as exc:
-        raise HTTPException(status_code=404) from exc
-    except NotGiftAuthorError as exc:
-        raise HTTPException(status_code=403) from exc
-    except ValueError as exc:
-        return templates.TemplateResponse(
-            request,
-            "gifts/modifier.html",
-            {
-                "csrf_token": get_csrf_token(request),
-                "gift": get_editable_gift(db, membre, gift_id),
-                "erreur": str(exc),
-            },
-            status_code=400,
-        )
-    return RedirectResponse(f"/cadeaux/{gift.id}", status_code=303)
+    return _reservation_action(
+        request, db, user, gift_id, reservations.cancel, "Réservation annulée."
+    )
 
 
-@router.post("/cadeaux/{gift_id}/supprimer", dependencies=[Depends(verify_csrf)])
-def supprimer_cadeau(
-    gift_id: int,
+@router.post("/cadeaux/{gift_id}/acheter")
+def mark_bought(
     request: Request,
-    membre: User = Depends(current_member),
+    gift_id: int,
+    user: User = Depends(current_member),
     db: Session = Depends(get_db),
 ):
-    """RG-22 (US-17) : suppression (définitive ou douce) par l'auteur. Même message dans
-    les deux cas, pour ne rien révéler au destinataire (règle n°1 — la surprise)."""
-    try:
-        delete_gift(db, membre, gift_id)
-    except GiftNotFoundError as exc:
-        raise HTTPException(status_code=404) from exc
-    except NotGiftAuthorError as exc:
-        raise HTTPException(status_code=403) from exc
+    return _reservation_action(
+        request, db, user, gift_id, reservations.mark_bought, "Cadeau marqué comme acheté."
+    )
 
-    return templates.TemplateResponse(
-        request, "gifts/supprime.html", {"csrf_token": get_csrf_token(request)}
+
+@router.post("/cadeaux/{gift_id}/annuler-achat")
+def cancel_bought(
+    request: Request,
+    gift_id: int,
+    user: User = Depends(current_member),
+    db: Session = Depends(get_db),
+):
+    return _reservation_action(
+        request, db, user, gift_id, reservations.cancel_bought, "Achat annulé."
     )

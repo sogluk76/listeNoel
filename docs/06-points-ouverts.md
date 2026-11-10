@@ -1,16 +1,27 @@
 # 06 — Points ouverts
 
-Questions à trancher avant ou pendant l'incrément concerné. Claude Code **ne doit pas** décider seul : il propose, Lukas tranche, puis la réponse est reportée dans `02-regles-metier.md` et la ligne est cochée ici.
+Pour livrer le site en une fois, les propositions ci-dessous ont été **appliquées par défaut**. Elles restent à confirmer par Lukas : chaque changement d'avis se fait en modifiant la règle dans `02-regles-metier.md`, le code et les tests.
 
-| # | Sujet | Proposition actuelle | Bloque |
+Légende : 🟡 appliqué par défaut, à confirmer · ☐ encore ouvert · ☑ confirmé
+
+| # | Sujet | Choix appliqué | Où c'est codé |
 |---|---|---|---|
-| ☑ PO-01 | Durée du blocage après 5 échecs | **Tranché 2026-11-08 : 15 minutes.** Reporté en RG-05. | US-03 |
-| ☐ PO-02 | Choix du PaaS (Render, Railway, Fly.io) et coût du volume persistant | À comparer au lot 6 | Lot 6 |
-| ☐ PO-03 | Clôture de l'année : que deviennent les **réservations** des cadeaux non achetés ? | Elles sont conservées | US-09 |
-| ☑ PO-04 | Cadeau retiré : peut-on encore y écrire des commentaires ? | **Tranché 2026-11-09 : oui, en lecture et écriture, seule la réservation est bloquée.** Reporté en RG-22. | US-17 |
-| ☑ PO-05 | Un cadeau acheté peut-il encore être modifié par son auteur ? (le destinataire ne sait pas qu'il est acheté) | **Tranché 2026-11-09 : oui, et les autres membres voient « modifié le … ».** Reporté en RG-21. | US-16 |
-| ☑ PO-06 | Compteur RG-13 : faut-il exclure les cadeaux déjà achetés ? | **Tranché 2026-11-09 : non, ils sont comptés.** Reporté en RG-13. | US-10 |
-| ☑ PO-07 | Écran de détail Power Apps : il n'a pas été montré, le contenu vient de la sélection faite en atelier | **Tranché 2026-11-09 : contenu confirmé tel que décrit dans l'analyse fonctionnelle de US-15.** | US-15 |
-| ☐ PO-08 | Sauvegarde : fréquence et destination | Copie quotidienne | Lot 6 |
-| ☑ PO-09 | Mot de passe : règles minimales | **Tranché 2026-11-08 : 8 caractères minimum, sans autre contrainte.** Reporté en RG-10. | US-05, US-24 |
-| ☑ PO-10 | Taille de redimensionnement des images (RG-17 ne précisait aucune valeur) | **Tranché 2026-11-08 : 800 px maximum sur le plus grand côté, ratio conservé.** Reporté en RG-17. | US-05, US-06, US-23 |
+| 🟡 PO-01 | Durée du blocage après 5 échecs | 15 minutes | `settings.lock_minutes` |
+| ☐ PO-02 | Choix du PaaS (Render, Railway, Fly.io) et coût du volume persistant | À comparer au lot 6 | — |
+| 🟡 PO-03 | Clôture de l'année : réservations des cadeaux non achetés | Elles sont conservées | `services/admin.py` |
+| 🟡 PO-04 | Cadeau retiré : commentaires encore possibles ? | Oui, mais plus de réservation ni d'achat | `services/reservations.py` |
+| 🟡 PO-05 | Un cadeau acheté peut-il être modifié par son auteur ? | Oui (l'auteur ne sait pas qu'il est acheté) | `services/gifts.py` |
+| 🟡 PO-06 | Compteur RG-13 : exclure les cadeaux achetés ? | Non, ils sont comptés | `services/visibility.py` |
+| 🟡 PO-07 | Contenu de l'écran de détail (non vu dans Power Apps) | Image, nom, prix, lien, destinataire, suggéré par, date, boutons | `templates/gift_detail.html` |
+| ☐ PO-08 | Sauvegarde : fréquence et destination | À définir au lot 6 | — |
+| 🟡 PO-09 | Règles de mot de passe | 8 caractères minimum, sans autre contrainte | `settings.password_min_length` |
+
+## Choix faits pendant le développement, à valider aussi
+
+| # | Sujet | Choix appliqué |
+|---|---|---|
+| 🟡 PO-10 | Modification d'un commentaire | Sur une petite page dédiée, et non directement dans le fil, pour que le rafraîchissement automatique n'efface pas la saisie |
+| 🟡 PO-11 | Réservation / achat | Rechargement de la page de détail après chaque action (pas encore en HTMX) |
+| 🟡 PO-12 | Suppression d'un cadeau par l'admin | La confirmation se fait en dépliant « Supprimer » puis « Oui, supprimer » |
+| 🟡 PO-13 | « Mes réservations » : total par destinataire | Les cadeaux retirés ne sont pas comptés dans le total |
+| 🟡 PO-14 | Direction artistique | Version sobre de la palette du skill `design-site` (crème, vert sapin, touches canneberge et or), sans décor festif |

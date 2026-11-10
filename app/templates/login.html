@@ -1,33 +1,36 @@
 {% extends "base.html" %}
-
-{% block title %}Connexion{% endblock %}
-
+{% from "macros.html" import csrf, icon %}
+{% block title %}Connexion · Liste de Noël{% endblock %}
+{% block header %}{% endblock %}
+{% block page_class %}page--center{% endblock %}
 {% block content %}
-<h2>Connexion</h2>
-{% if erreur %}
-<p role="alert">{{ erreur }}</p>
-{% endif %}
-<div id="photo-apercu"></div>
-<form method="post" action="/login">
-    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-    <label for="first_name">Prénom</label>
-    <select
-        id="first_name"
-        name="first_name"
-        required
-        hx-get="/login/photo"
-        hx-trigger="change"
-        hx-target="#photo-apercu"
-        hx-include="this"
-    >
-        <option value="" disabled selected>Choisis ton prénom</option>
-        {% for membre in membres %}
-        <option value="{{ membre.first_name }}">{{ membre.first_name }}</option>
-        {% endfor %}
-    </select>
+<section class="card card--narrow login">
+  <p class="login__brand">{{ icon("gift") }}</p>
+  <h1 class="text-center">Liste de Noël</h1>
 
-    <label for="password">Mot de passe</label>
-    <input type="password" id="password" name="password" required>
-    <button type="submit">Se connecter</button>
-</form>
+  {% if not members %}
+  <p class="muted text-center">Aucun compte n'existe encore. L'administrateur doit d'abord créer les comptes de la famille.</p>
+  {% else %}
+  <div class="login__avatar" id="login-avatar">{% include "_login_avatar.html" %}</div>
+
+  <form method="post" action="/login" class="stack">
+    {{ csrf(csrf_token) }}
+    {% if error %}<p class="alert alert--error" role="alert">{{ error }}</p>{% endif %}
+    <div class="field">
+      <label for="user_id">Qui es-tu ?</label>
+      <select id="user_id" name="user_id" required
+              hx-get="/login/avatar" hx-target="#login-avatar" hx-trigger="change">
+        {% for m in members %}
+        <option value="{{ m.id }}" {% if selected and selected.id == m.id %}selected{% endif %}>{{ m.first_name }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="field">
+      <label for="password">Mot de passe</label>
+      <input id="password" name="password" type="password" autocomplete="current-password" required>
+    </div>
+    <button class="btn btn--primary btn--block" type="submit">Connexion</button>
+  </form>
+  {% endif %}
+</section>
 {% endblock %}

@@ -1,232 +1,153 @@
+"""Matrice de confidentialité RG-30 : le destinataire ne reçoit jamais rien de caché,
+ni dans les pages, ni dans les fragments HTMX, ni par URL forgée."""
+
 import pytest
 
-from app.models import Reservation
-from app.services.visibility import (
-    GiftNotFoundError,
-    IsRecipientError,
-    get_commentable_gift,
-    get_visible_gift,
-    visible_gift_count,
-    visible_gifts_for,
-)
+from app.models import Comment, Reservation, utcnow
+
+HTMX = {"HX-Request": "true"}
 
 
-def test_us10_cadeau_personnel_compte_pour_le_destinataire_lui_meme(db_session, alice, create_gift):
-    create_gift(alice)
+@pytest.fixture
+def scene(db, alice, bob, chloe, make_gift):
+    """Alice a un cadeau personnel (réservé et commenté par Bob) et une suggestion de Bob."""
+    perso = make_gift(alice, alice, "Livre de cuisine")
+    perso.reservations.append(Reservation(user_id=bob.id))
+    perso.comments.append(Comment(author_id=bob.id, content="SECRET-COMMENTAIRE je le prends"))
+    surprise = make_gift(bob, alice, "SECRET-SURPRISE trottinette")
+    surprise.comments.append(Comment(author_id=chloe.id, content="SECRET-COMMENTAIRE bonne idée"))
+    db.commit()
+    return {"perso": perso, "surprise": surprise}
 
-    assert visible_gift_count(db_session, alice, alice) == 1
+
+def test_us10_compteur_sans_les_suggestions_sur_ma_ligne(login, scene, alice, bob):
+    html_alice = login(alice).get("/").text
+    html_bob = login(bob).get("/").text
+    assert _count(html_alice, "Alice") == 1  # son cadeau personnel seulement
+    assert _count(html_bob, "Alice") == 2  # personnel + suggestion
 
 
-def test_us10_suggestion_ne_compte_pas_pour_le_destinataire_lui_meme(
-    db_session, alice, bob, create_gift
+def _count(html: str, name: str) -> int:
+    row = html.split(f">{name}")[1]
+    return int(row.split('class="count"')[1].split(">")[1].split("<")[0])
+
+
+def test_us13_ma_liste_ne_contient_aucune_donnee_cachee(login, scene, alice):
+    html = login(alice).get(f"/personnes/{alice.id}").text
+    assert "Livre de cuisine" in html
+    for hidden in ("SECRET", "Suggéré par", "pill", "badge", "commentaires", "Réservé"):
+        assert hidden not in html, hidden
+
+
+def test_us13_fragment_htmx_de_ma_liste_sans_donnee_cachee(login, scene, alice):
+    html = login(alice).get(f"/personnes/{alice.id}?q=&tri=statut", headers=HTMX).text
+    assert "Livre de cuisine" in html
+    for hidden in ("SECRET", "pill", "badge", "commentaires"):
+        assert hidden not in html, hidden
+
+
+def test_us14_recherche_ne_revele_pas_de_suggestion(login, scene, alice):
+    html = login(alice).get(f"/personnes/{alice.id}?q=trottinette").text
+    assert "SECRET" not in html
+
+
+def test_us13_les_autres_voient_tout(login, scene, alice, chloe):
+    html = login(chloe).get(f"/personnes/{alice.id}").text
+    assert "SECRET-SURPRISE trottinette" in html
+    assert "Suggéré par Bob" in html
+    assert "Réservé" in html and "badge" in html
+
+
+def test_us15_detail_de_mon_cadeau_sans_statut_ni_reservants(login, scene, alice):
+    html = login(alice).get(f"/cadeaux/{scene['perso'].id}").text
+    assert "Livre de cuisine" in html
+    for hidden in ("Qui s'en occupe", "Bob", "commentaires", "pill", "Je m'en occupe"):
+        assert hidden not in html, hidden
+
+
+def test_us12_suggestion_introuvable_pour_le_destinataire(login, scene, alice):
+    client = login(alice)
+    gift_id = scene["surprise"].id
+    assert client.get(f"/cadeaux/{gift_id}").status_code == 404
+    assert client.get(f"/cadeaux/{gift_id}/modifier").status_code == 404
+    assert client.get(f"/cadeaux/{gift_id}/commentaires").status_code == 404
+    assert client.post(f"/cadeaux/{gift_id}/supprimer").status_code == 404
+    assert client.post(f"/cadeaux/{gift_id}/reserver").status_code == 404
+
+
+def test_us20_commentaires_interdits_au_destinataire(login, scene, alice):
+    client = login(alice)
+    gift_id = scene["perso"].id
+    for path in (f"/cadeaux/{gift_id}/commentaires", f"/cadeaux/{gift_id}/commentaires/fil"):
+        response = client.get(path)
+        assert response.status_code == 403
+        assert "SECRET" not in response.text
+    response = client.get(f"/cadeaux/{gift_id}/commentaires/fil", headers=HTMX)
+    assert response.status_code == 403 and "SECRET" not in response.text
+    assert (
+        client.post(f"/cadeaux/{gift_id}/commentaires", data={"content": "coucou"}).status_code
+        == 403
+    )
+
+
+def test_us22_destinataire_ne_peut_pas_toucher_un_commentaire(login, db, scene, alice):
+    comment = scene["perso"].comments[0]
+    client = login(alice)
+    assert client.get(f"/commentaires/{comment.id}/modifier").status_code == 403
+    assert client.post(f"/commentaires/{comment.id}/supprimer").status_code == 403
+
+
+def test_us18_reservation_interdite_au_destinataire(login, db, scene, alice):
+    client = login(alice)
+    gift_id = scene["perso"].id
+    for action in ("reserver", "annuler-reservation", "acheter", "annuler-achat"):
+        assert client.post(f"/cadeaux/{gift_id}/{action}").status_code == 403
+
+
+def test_us25_mes_reservations_ne_montrent_pas_mes_propres_cadeaux(login, scene, alice, bob):
+    assert "Livre de cuisine" not in login(alice).get("/profil").text
+    assert "Livre de cuisine" in login(bob).get("/profil").text
+
+
+def test_rg22_cadeau_retire_visible_des_autres_pas_de_son_auteur(
+    login, db, scene, alice, bob, chloe
 ):
-    create_gift(bob, recipient=alice)
-
-    assert visible_gift_count(db_session, alice, alice) == 0
-
-
-def test_us10_suggestion_compte_pour_un_autre_viewer(db_session, alice, bob, chloe, create_gift):
-    create_gift(bob, recipient=alice)
-
-    assert visible_gift_count(db_session, chloe, alice) == 1
-    assert visible_gift_count(db_session, bob, alice) == 1
-
-
-def test_us10_cadeau_retire_jamais_compte(db_session, alice, chloe, create_gift):
-    create_gift(alice, removed=True)
-
-    assert visible_gift_count(db_session, alice, alice) == 0
-    assert visible_gift_count(db_session, chloe, alice) == 0
-
-
-def test_us10_cadeau_archive_jamais_compte(db_session, alice, chloe, create_gift):
-    create_gift(alice, archived_year=2025)
-
-    assert visible_gift_count(db_session, alice, alice) == 0
-    assert visible_gift_count(db_session, chloe, alice) == 0
-
-
-def test_us10_cadeau_achete_compte_toujours(db_session, alice, bob, create_gift):
-    create_gift(alice, purchased_by=bob)
-
-    assert visible_gift_count(db_session, alice, alice) == 1
-    assert visible_gift_count(db_session, bob, alice) == 1
-
-
-def test_us10_scenario_alice_et_bob_suit_la_matrice_rg30(
-    db_session, alice, bob, chloe, create_gift
-):
-    create_gift(alice, name="Cadeau perso Alice")
-    create_gift(bob, recipient=alice, name="Suggestion de Bob pour Alice")
-    create_gift(bob, name="Cadeau perso Bob")
-    create_gift(chloe, recipient=bob, name="Suggestion de Chloé pour Bob")
-
-    assert visible_gift_count(db_session, alice, alice) == 1
-    assert visible_gift_count(db_session, alice, bob) == 2
-
-
-def test_us13_propre_liste_exclut_les_suggestions(db_session, alice, bob, create_gift):
-    create_gift(alice)
-    create_gift(bob, recipient=alice)
-
-    vues = visible_gifts_for(db_session, alice, alice)
-
-    assert len(vues) == 1
-    assert vues[0].gift.author_id == alice.id
-
-
-def test_us13_propre_liste_naffiche_ni_statut_ni_reservants_ni_commentaires(
-    db_session, alice, create_gift
-):
-    create_gift(alice)
-
-    vues = visible_gifts_for(db_session, alice, alice)
-
-    assert vues[0].status is None
-    assert vues[0].reservants == []
-    assert vues[0].comment_count == 0
-    assert vues[0].suggested_by is None
-
-
-def test_us13_liste_dun_autre_inclut_les_suggestions_avec_statut(
-    db_session, alice, bob, create_gift
-):
-    create_gift(bob)
-    create_gift(alice, recipient=bob)
-
-    vues = visible_gifts_for(db_session, alice, bob)
-
-    assert len(vues) == 2
-    suggestion = next(v for v in vues if v.is_suggestion)
-    assert suggestion.suggested_by.id == alice.id
-    assert suggestion.status == "disponible"
-
-
-def test_us13_cadeau_retire_absent_chez_son_auteur_mais_visible_chez_les_autres(
-    db_session, alice, bob, create_gift
-):
-    create_gift(alice, removed=True)
-
-    assert visible_gifts_for(db_session, alice, alice) == []
-
-    vues_bob = visible_gifts_for(db_session, bob, alice)
-    assert len(vues_bob) == 1
-    assert vues_bob[0].is_removed is True
-    assert vues_bob[0].removed_by.id == alice.id
-    assert vues_bob[0].status == "retiré"
-
-
-def test_us13_cadeau_archive_jamais_visible(db_session, alice, bob, create_gift):
-    create_gift(alice, archived_year=2025)
-
-    assert visible_gifts_for(db_session, alice, alice) == []
-    assert visible_gifts_for(db_session, bob, alice) == []
-
-
-def test_us13_statut_achete(db_session, alice, bob, create_gift):
-    create_gift(alice, purchased_by=bob)
-
-    vues = visible_gifts_for(db_session, bob, alice)
-
-    assert vues[0].status == "acheté"
-
-
-def test_us13_statut_reserve_et_reservants(db_session, alice, bob, create_gift):
-    gift = create_gift(alice)
-    db_session.add(Reservation(gift_id=gift.id, user_id=bob.id))
-    db_session.commit()
-
-    vues = visible_gifts_for(db_session, bob, alice)
-
-    assert vues[0].status == "réservé"
-    assert vues[0].reservants[0].id == bob.id
-
-
-def test_us15_destinataire_voit_le_detail_de_son_cadeau_personnel(db_session, alice, create_gift):
-    gift = create_gift(alice)
-
-    vue = get_visible_gift(db_session, alice, gift.id)
-
-    assert vue.gift.id == gift.id
-
-
-def test_us15_destinataire_dune_suggestion_recoit_404(db_session, alice, bob, create_gift):
-    gift = create_gift(bob, recipient=alice)
-
-    with pytest.raises(GiftNotFoundError):
-        get_visible_gift(db_session, alice, gift.id)
-
-
-def test_us15_auteur_voit_sa_suggestion_chez_le_destinataire(db_session, alice, bob, create_gift):
-    gift = create_gift(alice, recipient=bob)
-
-    vue = get_visible_gift(db_session, alice, gift.id)
-
-    assert vue.suggested_by.id == alice.id
-
-
-def test_us15_autre_membre_voit_le_cadeau_avec_son_statut(db_session, bob, chloe, create_gift):
-    gift = create_gift(bob)
-
-    vue = get_visible_gift(db_session, chloe, gift.id)
-
-    assert vue.status == "disponible"
-
-
-def test_us15_cadeau_retire_absent_chez_son_auteur(db_session, alice, create_gift):
-    gift = create_gift(alice, removed=True)
-
-    with pytest.raises(GiftNotFoundError):
-        get_visible_gift(db_session, alice, gift.id)
-
-
-def test_us15_cadeau_archive_404_pour_tous(db_session, alice, bob, create_gift):
-    gift = create_gift(alice, archived_year=2025)
-
-    with pytest.raises(GiftNotFoundError):
-        get_visible_gift(db_session, alice, gift.id)
-    with pytest.raises(GiftNotFoundError):
-        get_visible_gift(db_session, bob, gift.id)
-
-
-def test_us15_cadeau_inexistant_404(db_session, alice):
-    with pytest.raises(GiftNotFoundError):
-        get_visible_gift(db_session, alice, 9999)
-
-
-def test_us20_destinataire_dun_cadeau_personnel_leve_is_recipient(db_session, alice, create_gift):
-    gift = create_gift(alice, name="Vélo")
-
-    with pytest.raises(IsRecipientError):
-        get_commentable_gift(db_session, alice, gift.id)
-
-
-def test_us20_destinataire_dune_suggestion_leve_is_recipient(db_session, alice, bob, create_gift):
-    gift = create_gift(bob, recipient=alice, name="Cadeau secret")
-
-    with pytest.raises(IsRecipientError):
-        get_commentable_gift(db_session, alice, gift.id)
-
-
-def test_us20_autre_membre_accede_au_cadeau(db_session, alice, bob, create_gift):
-    gift = create_gift(alice, name="Vélo")
-
-    assert get_commentable_gift(db_session, bob, gift.id) is gift
-
-
-def test_us20_cadeau_retire_reste_commentable(db_session, alice, bob, create_gift):
-    gift = create_gift(alice, name="Vélo", removed=True)
-
-    assert get_commentable_gift(db_session, bob, gift.id) is gift
-
-
-def test_us20_cadeau_archive_leve_not_found(db_session, alice, bob, create_gift):
-    gift = create_gift(alice, name="Vélo", archived_year=2025)
-
-    with pytest.raises(GiftNotFoundError):
-        get_commentable_gift(db_session, bob, gift.id)
-
-
-def test_us20_cadeau_inexistant_leve_not_found(db_session, bob):
-    with pytest.raises(GiftNotFoundError):
-        get_commentable_gift(db_session, bob, 9999)
+    scene["perso"].removed_at = utcnow()
+    scene["surprise"].removed_at = utcnow()
+    db.commit()
+    # Alice (auteure de son cadeau personnel) ne le voit plus
+    assert "Livre de cuisine" not in login(alice).get(f"/personnes/{alice.id}").text
+    # Bob (auteur de la suggestion) ne voit plus sa suggestion, mais voit le cadeau d'Alice retiré
+    html_bob = login(bob).get(f"/personnes/{alice.id}").text
+    assert "SECRET-SURPRISE" not in html_bob and "Retiré" in html_bob
+    # Chloé voit les deux, marqués « Retiré »
+    html_chloe = login(chloe).get(f"/personnes/{alice.id}").text
+    assert "SECRET-SURPRISE" in html_chloe and html_chloe.count("pill--removed") == 2
+    # ... et ils ne comptent plus
+    assert _count(login(chloe).get("/").text, "Alice") == 0
+
+
+def test_rg40_cadeau_archive_invisible_partout(login, db, scene, alice, bob):
+    scene["perso"].archived_year = 2026
+    db.commit()
+    client = login(bob)
+    assert "Livre de cuisine" not in client.get(f"/personnes/{alice.id}").text
+    assert client.get(f"/cadeaux/{scene['perso'].id}").status_code == 404
+    assert "Livre de cuisine" not in client.get("/profil").text
+    assert _count(client.get("/").text, "Alice") == 1  # il reste la suggestion
+
+
+def test_rg11_compte_desactive_masque(login, db, scene, alice, bob):
+    alice.is_active = False
+    db.commit()
+    client = login(bob)
+    assert ">Alice" not in client.get("/").text
+    assert client.get(f"/personnes/{alice.id}").status_code == 404
+    assert client.get(f"/cadeaux/{scene['perso'].id}").status_code == 404
+
+
+def test_rg11_session_d_un_compte_desactive_refusee(login, db, alice):
+    client = login(alice)
+    alice.is_active = False
+    db.commit()
+    assert client.get("/").headers["location"] == "/login"

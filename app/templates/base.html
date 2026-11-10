@@ -1,17 +1,37 @@
+{% from "macros.html" import avatar, icon %}
 <!doctype html>
 <html lang="fr">
 <head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>{% block title %}Liste de Noël{% endblock %}</title>
-    <script src="{{ url_for('static', path='js/htmx.min.js') }}"></script>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="csrf-token" content="{{ csrf_token }}">
+  <meta name="htmx-config" content='{"responseHandling":[{"code":"204","swap":false},{"code":"[23]..","swap":true},{"code":"422","swap":true},{"code":"[45]..","swap":false,"error":true}]}'>
+  <title>{% block title %}Liste de Noël{% endblock %}</title>
+  <link rel="stylesheet" href="/static/css/tokens.css">
+  <link rel="stylesheet" href="/static/css/base.css">
+  <link rel="stylesheet" href="/static/css/components.css">
+  <link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
+  <script src="/static/js/htmx.min.js" defer></script>
 </head>
-<body hx-headers='{"X-CSRF-Token": "{{ csrf_token }}"}'>
-    <header>
-        <h1>Liste de Noël</h1>
-    </header>
-    <main>
-        {% block content %}{% endblock %}
-    </main>
+<body class="{% block body_class %}{% endblock %}" hx-headers='{"X-CSRF-Token": "{{ csrf_token }}"}'>
+{% block header %}
+<header class="app-header">
+  <div class="app-header__inner">
+    <a class="app-header__brand" href="/">{{ icon("gift") }}<span>Liste de Noël</span></a>
+    {% if user and user.is_member %}
+    <nav class="app-header__actions" aria-label="Navigation">
+      <a class="icon-btn" href="/cadeaux/nouveau" aria-label="Ajouter un cadeau" title="Ajouter un cadeau">{{ icon("plus") }}</a>
+      <a class="app-header__profile" href="/profil" aria-label="Mon profil" title="Mon profil">{{ avatar(user, "sm") }}</a>
+    </nav>
+    {% endif %}
+  </div>
+</header>
+{% endblock %}
+<main class="page {% block page_class %}{% endblock %}">
+  {% for f in flashes %}
+  <p class="flash flash--{{ f.kind }}" role="status">{{ f.message }}</p>
+  {% endfor %}
+  {% block content %}{% endblock %}
+</main>
 </body>
 </html>

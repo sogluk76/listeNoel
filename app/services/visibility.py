@@ -1,139 +1,184 @@
-from dataclasses import dataclass
+"""Matrice de confidentialité (RG-30).
 
+C'est le SEUL endroit qui décide de ce qu'un membre peut voir. Toute lecture de
+cadeaux, de réservations ou de commentaires côté membre passe par ce module :
+les données cachées ne sont jamais chargées dans la vue du destinataire.
+"""
+
+from dataclasses import dataclass, field
+
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.models import Gift, User
+from app.errors import Forbidden, NotFound
+from app.models import (
+    STATUS_AVAILABLE,
+    STATUS_BOUGHT,
+    STATUS_REMOVED,
+    STATUS_RESERVED,
+    Gift,
+    Reservation,
+    User,
+)
+from app.services import users as users_service
+from app.services.text import fold
 
-
-class GiftNotFoundError(Exception):
-    pass
-
-
-class IsRecipientError(Exception):
-    """Le destinataire d'un cadeau n'agit jamais sur son propre cadeau (réservation,
-    achat) : levée même via une requête forgée (RG-26, RG-28), toujours traduite en 403.
-    """
-
-    pass
+SORT_NAME = "nom"
+SORT_PRICE = "prix"
+SORT_STATUS = "statut"
+_STATUS_ORDER = {STATUS_AVAILABLE: 0, STATUS_RESERVED: 1, STATUS_BOUGHT: 2, STATUS_REMOVED: 3}
 
 
 @dataclass
 class GiftView:
-    """Un cadeau annoté des informations calculées nécessaires à l'affichage (RG-30).
-
-    Jamais construit à la main dans un router ou un template : c'est ici, et nulle part
-    ailleurs, que se décide ce qu'un viewer peut savoir d'un cadeau.
-    """
+    """Ce que le viewer a le droit de voir d'un cadeau. Les templates n'utilisent que ça."""
 
     gift: Gift
-    is_suggestion: bool
-    suggested_by: User | None
-    is_removed: bool
-    removed_by: User | None
-    status: str | None
-    reservants: list[User]
-    comment_count: int
+    is_mine: bool  # le viewer est le destinataire
+    can_edit: bool  # le viewer est l'auteur (RG-21)
+    show_secrets: bool  # statut, réservations, commentaires
+    status: str | None = None
+    reservers: list[User] = field(default_factory=list)
+    buyer: User | None = None
+    comment_count: int | None = None
+    suggested_by: User | None = None
+    removed_by: User | None = None
+    i_reserved: bool = False
+    i_bought: bool = False
 
 
-def visible_gift_count(db: Session, viewer: User, person: User) -> int:
-    """RG-13/RG-30 : nombre de cadeaux de `person` visibles par `viewer` sur sa liste.
-
-    Les cadeaux personnels comptent toujours ; les suggestions pour `person` ne comptent
-    que si `viewer` n'est pas `person` (un destinataire ne voit jamais ce qu'on lui
-    suggère). Retirés et archivés ne comptent jamais. Un cadeau acheté compte toujours
-    (PO-06).
-    """
-    query = db.query(Gift).filter(
-        Gift.recipient_id == person.id,
-        Gift.removed_at.is_(None),
-        Gift.archived_year.is_(None),
-    )
-    if viewer.id == person.id:
-        query = query.filter(Gift.author_id == Gift.recipient_id)
-    return query.count()
+def can_see_secrets(viewer: User, gift: Gift) -> bool:
+    return viewer.id != gift.recipient_id
 
 
-def visible_gifts_for(db: Session, viewer: User, person: User) -> list[GiftView]:
-    """RG-30 : cadeaux de `person` visibles par `viewer`, triés par nom, avec les
-    métadonnées d'affichage (statut, suggestion, réservants, commentaires) déjà calculées
-    selon le rôle du viewer — jamais à construire dans le router ou le template.
-    """
-    is_own_list = viewer.id == person.id
-
-    query = db.query(Gift).filter(Gift.recipient_id == person.id, Gift.archived_year.is_(None))
-    if is_own_list:
-        # Sur sa propre liste (RG-30) : ni suggestion, ni cadeau que j'ai moi-même retiré.
-        query = query.filter(Gift.author_id == Gift.recipient_id, Gift.removed_at.is_(None))
-
-    gifts = query.order_by(Gift.name).all()
-    return [_to_gift_view(gift, is_own_list=is_own_list) for gift in gifts]
+def is_visible(viewer: User, gift: Gift) -> bool:
+    """Un cadeau est-il visible par ce membre ? (RG-11, RG-22, RG-30, RG-40)"""
+    if gift.is_archived:
+        return False
+    if not gift.recipient.is_active or not gift.recipient.is_member:
+        return False
+    if gift.is_removed and gift.author_id == viewer.id:
+        return False  # retiré : disparaît de la vue de son auteur
+    if viewer.id == gift.recipient_id and gift.is_suggestion:
+        return False  # jamais de suggestion sur ma propre liste
+    return True
 
 
-def get_visible_gift(db: Session, viewer: User, gift_id: int) -> GiftView:
-    """RG-30/RG-40 (US-15) : détail d'un cadeau, filtré par les mêmes règles que sa liste.
+def build_view(viewer: User, gift: Gift) -> GiftView:
+    is_mine = viewer.id == gift.recipient_id
+    can_edit = gift.author_id == viewer.id and not gift.is_removed and not gift.is_archived
+    view = GiftView(gift=gift, is_mine=is_mine, can_edit=can_edit, show_secrets=not is_mine)
+    if is_mine:
+        return view  # aucune donnée cachée n'est copiée dans la vue
+    view.status = gift.status
+    view.reservers = [r.user for r in gift.reservations]
+    view.buyer = gift.purchased_by
+    view.comment_count = len(gift.comments)
+    view.suggested_by = gift.author if gift.is_suggestion else None
+    view.removed_by = gift.author if gift.is_removed else None
+    view.i_reserved = any(r.user_id == viewer.id for r in gift.reservations)
+    view.i_bought = gift.purchased_by_id == viewer.id
+    return view
 
-    Un cadeau inexistant, archivé, ou qui n'apparaîtrait pas dans la liste de son
-    destinataire pour ce `viewer` lève `GiftNotFoundError` — même 404 dans tous les cas,
-    pour ne jamais révéler qu'un cadeau cache une suggestion ou un retrait.
-    """
+
+def _visible_gifts(db: Session, viewer: User, recipient: User) -> list[Gift]:
+    stmt = select(Gift).where(Gift.recipient_id == recipient.id, Gift.archived_year.is_(None))
+    if viewer.id == recipient.id:
+        # Filtrage dans la requête : les suggestions ne sortent jamais de la base.
+        stmt = stmt.where(Gift.author_id == viewer.id, Gift.removed_at.is_(None))
+    return [g for g in db.scalars(stmt).all() if is_visible(viewer, g)]
+
+
+def get_person(db: Session, person_id: int) -> User:
+    person = users_service.get_active_member(db, person_id)
+    if person is None:
+        raise NotFound()
+    return person
+
+
+def people_with_counts(db: Session, viewer: User) -> list[tuple[User, int]]:
+    """Membres actifs et nombre de cadeaux visibles par le viewer (RG-12, RG-13)."""
+    result = []
+    for person in users_service.active_members(db):
+        gifts = _visible_gifts(db, viewer, person)
+        result.append((person, sum(1 for g in gifts if not g.is_removed)))
+    return result
+
+
+def list_gifts(
+    db: Session,
+    viewer: User,
+    recipient: User,
+    query: str = "",
+    sort: str = SORT_NAME,
+    descending: bool = False,
+) -> list[GiftView]:
+    """Liste de cadeaux d'une personne, filtrée, puis recherchée et triée (RG-24, RG-25)."""
+    views = [build_view(viewer, g) for g in _visible_gifts(db, viewer, recipient)]
+
+    needle = fold(query or "")
+    if needle:
+        views = [v for v in views if needle in fold(v.gift.name)]
+
+    if sort == SORT_STATUS and viewer.id == recipient.id:
+        sort = SORT_NAME  # pas de tri par statut sur ma propre liste
+
+    views.sort(key=lambda v: fold(v.gift.name))
+    if sort == SORT_PRICE:
+        priced = sorted(
+            (v for v in views if v.gift.price is not None),
+            key=lambda v: v.gift.price,
+            reverse=descending,
+        )
+        return priced + [v for v in views if v.gift.price is None]  # sans prix à la fin
+    if sort == SORT_STATUS:
+        views.sort(key=lambda v: _STATUS_ORDER[v.status], reverse=descending)
+        return views
+    if descending:
+        views.reverse()
+    return views
+
+
+def get_gift(db: Session, viewer: User, gift_id: int) -> Gift:
+    """Cadeau visible par le viewer, sinon 404 (y compris pour une URL forgée)."""
     gift = db.get(Gift, gift_id)
-    if gift is None or gift.archived_year is not None:
-        raise GiftNotFoundError
-
-    vue = next(
-        (v for v in visible_gifts_for(db, viewer, gift.recipient) if v.gift.id == gift.id), None
-    )
-    if vue is None:
-        raise GiftNotFoundError
-    return vue
-
-
-def get_commentable_gift(db: Session, viewer: User, gift_id: int) -> Gift:
-    """RG-30/RG-31 (US-20) : le cadeau `gift_id`, si `viewer` peut accéder à son fil de
-    commentaires. Le destinataire n'y accède **jamais**, cadeau personnel ou suggestion
-    (`IsRecipientError`, toujours 403, même via requête forgée). Un cadeau retiré reste
-    commentable (RG-22/PO-04) ; archivé ou inexistant lève `GiftNotFoundError` (404).
-    """
-    gift = db.get(Gift, gift_id)
-    if gift is None or gift.archived_year is not None:
-        raise GiftNotFoundError
-    if gift.recipient_id == viewer.id:
-        raise IsRecipientError
+    if gift is None or not is_visible(viewer, gift):
+        raise NotFound()
     return gift
 
 
-def _to_gift_view(gift: Gift, *, is_own_list: bool) -> GiftView:
-    if is_own_list:
-        return GiftView(
-            gift=gift,
-            is_suggestion=False,
-            suggested_by=None,
-            is_removed=False,
-            removed_by=None,
-            status=None,
-            reservants=[],
-            comment_count=0,
+def get_gift_with_secrets(db: Session, viewer: User, gift_id: int) -> Gift:
+    """Cadeau dont le viewer peut voir réservations et commentaires, sinon 403/404."""
+    gift = get_gift(db, viewer, gift_id)
+    if not can_see_secrets(viewer, gift):
+        raise Forbidden()
+    return gift
+
+
+def my_reservations(db: Session, viewer: User) -> list[tuple[User, list[GiftView], object]]:
+    """Cadeaux réservés ou achetés par le viewer, groupés par destinataire (RG-38)."""
+    stmt = (
+        select(Gift)
+        .outerjoin(Reservation, Reservation.gift_id == Gift.id)
+        .where(
+            Gift.archived_year.is_(None),
+            (Reservation.user_id == viewer.id) | (Gift.purchased_by_id == viewer.id),
         )
-
-    is_suggestion = gift.author_id != gift.recipient_id
-    is_removed = gift.removed_at is not None
-
-    if is_removed:
-        status = "retiré"
-    elif gift.purchased_by_id is not None:
-        status = "acheté"
-    elif gift.reservations:
-        status = "réservé"
-    else:
-        status = "disponible"
-
-    return GiftView(
-        gift=gift,
-        is_suggestion=is_suggestion,
-        suggested_by=gift.author if is_suggestion else None,
-        is_removed=is_removed,
-        removed_by=gift.author if is_removed else None,
-        status=status,
-        reservants=[reservation.user for reservation in gift.reservations],
-        comment_count=len(gift.comments),
+        .distinct()
     )
+    groups: dict[int, list[GiftView]] = {}
+    recipients: dict[int, User] = {}
+    for gift in db.scalars(stmt).all():
+        if not is_visible(viewer, gift) or not can_see_secrets(viewer, gift):
+            continue
+        groups.setdefault(gift.recipient_id, []).append(build_view(viewer, gift))
+        recipients[gift.recipient_id] = gift.recipient
+    result = []
+    for rid in sorted(groups, key=lambda i: fold(recipients[i].first_name)):
+        views = sorted(groups[rid], key=lambda v: fold(v.gift.name))
+        total = sum(
+            (v.gift.price for v in views if v.gift.price is not None and not v.gift.is_removed),
+            start=0,
+        )
+        result.append((recipients[rid], views, total))
+    return result

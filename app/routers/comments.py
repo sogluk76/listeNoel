@@ -1,156 +1,136 @@
-from fastapi import APIRouter, Depends, Form, HTTPException, Request
-from fastapi.responses import HTMLResponse
+"""Commentaires d'un cadeau (US-20 à US-22).
+
+Chaque route passe par visibility.get_gift_with_secrets : le destinataire reçoit
+une erreur 403, y compris sur le fragment de rafraîchissement HTMX.
+"""
+
+from fastapi import APIRouter, Depends, Form, Request
 from sqlalchemy.orm import Session
 
 from app.db import get_db
+from app.errors import Invalid
 from app.models import User
-from app.security import current_member, get_csrf_token, verify_csrf
-from app.services.comments import (
-    CommentNotFoundError,
-    NotCommentAuthorError,
-    create_comment,
-    delete_comment,
-    get_own_comment,
-    update_comment,
-)
-from app.services.visibility import GiftNotFoundError, IsRecipientError, get_commentable_gift
-from app.templating import templates
+from app.security import current_member, flash
+from app.services import comments as comments_service
+from app.services import visibility
+from app.web import fragment, is_htmx, redirect, render
 
 router = APIRouter()
 
 
+def _thread(request: Request, user: User, gift, error: str | None = None, status_code: int = 200):
+    return fragment(
+        request,
+        "_comment_thread.html",
+        {"gift": gift, "comments": comments_service.thread(gift), "user": user, "error": error},
+        status_code=status_code,
+    )
+
+
 @router.get("/cadeaux/{gift_id}/commentaires")
-def fil_commentaires(
-    gift_id: int,
+def comments_page(
     request: Request,
-    membre: User = Depends(current_member),
+    gift_id: int,
+    user: User = Depends(current_member),
     db: Session = Depends(get_db),
 ):
-    """RG-30/RG-31 (US-20)."""
-    try:
-        gift = get_commentable_gift(db, membre, gift_id)
-    except GiftNotFoundError as exc:
-        raise HTTPException(status_code=404) from exc
-    except IsRecipientError as exc:
-        raise HTTPException(status_code=403) from exc
-
-    return templates.TemplateResponse(
+    gift = visibility.get_gift_with_secrets(db, user, gift_id)
+    return render(
         request,
-        "comments/fil.html",
-        {"csrf_token": get_csrf_token(request), "membre": membre, "gift": gift},
+        "comments.html",
+        {"gift": gift, "comments": comments_service.thread(gift), "error": None},
+        user=user,
     )
 
 
 @router.get("/cadeaux/{gift_id}/commentaires/fil")
-def rafraichir_commentaires(
-    gift_id: int,
+def comments_thread(
     request: Request,
-    membre: User = Depends(current_member),
+    gift_id: int,
+    user: User = Depends(current_member),
     db: Session = Depends(get_db),
 ):
-    """RG-30/RG-34 (US-20) : fragment HTMX, interrogé toutes les 20 secondes. Même
-    contrôle d'accès que l'écran complet (AC : refusé au destinataire y compris sur
-    cette URL de rafraîchissement).
-    """
-    try:
-        gift = get_commentable_gift(db, membre, gift_id)
-    except GiftNotFoundError as exc:
-        raise HTTPException(status_code=404) from exc
-    except IsRecipientError as exc:
-        raise HTTPException(status_code=403) from exc
-
-    return templates.TemplateResponse(
-        request,
-        "comments/_messages.html",
-        {"csrf_token": get_csrf_token(request), "membre": membre, "gift": gift},
-    )
+    """Fragment rechargé toutes les 20 secondes (RG-34)."""
+    gift = visibility.get_gift_with_secrets(db, user, gift_id)
+    return _thread(request, user, gift)
 
 
-@router.post("/cadeaux/{gift_id}/commentaires", dependencies=[Depends(verify_csrf)])
-def ecrire_commentaire(
-    gift_id: int,
+@router.post("/cadeaux/{gift_id}/commentaires")
+def add_comment(
     request: Request,
-    content: str = Form(...),
-    membre: User = Depends(current_member),
+    gift_id: int,
+    content: str = Form(""),
+    user: User = Depends(current_member),
     db: Session = Depends(get_db),
 ):
-    """RG-33 (US-21)."""
+    gift = visibility.get_gift_with_secrets(db, user, gift_id)
     try:
-        create_comment(db, membre, gift_id, content)
-    except GiftNotFoundError as exc:
-        raise HTTPException(status_code=404) from exc
-    except IsRecipientError as exc:
-        raise HTTPException(status_code=403) from exc
-    except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
-
-    gift = get_commentable_gift(db, membre, gift_id)
-    return templates.TemplateResponse(
-        request,
-        "comments/_messages.html",
-        {"csrf_token": get_csrf_token(request), "membre": membre, "gift": gift},
-    )
+        comments_service.add(db, user, gift, content)
+    except Invalid as exc:
+        if is_htmx(request):
+            return _thread(request, user, gift, error=exc.message, status_code=422)
+        return render(
+            request,
+            "comments.html",
+            {"gift": gift, "comments": comments_service.thread(gift), "error": exc.message},
+            user=user,
+            status_code=422,
+        )
+    if is_htmx(request):
+        return _thread(request, user, gift)
+    return redirect(f"/cadeaux/{gift_id}/commentaires")
 
 
 @router.get("/commentaires/{comment_id}/modifier")
-def modifier_commentaire_form(
-    comment_id: int,
+def edit_comment_form(
     request: Request,
-    membre: User = Depends(current_member),
+    comment_id: int,
+    user: User = Depends(current_member),
     db: Session = Depends(get_db),
 ):
-    """RG-35 (US-22)."""
-    try:
-        comment = get_own_comment(db, membre, comment_id)
-    except CommentNotFoundError as exc:
-        raise HTTPException(status_code=404) from exc
-    except NotCommentAuthorError as exc:
-        raise HTTPException(status_code=403) from exc
-
-    return templates.TemplateResponse(
+    comment = comments_service.get_own(db, user, comment_id)
+    return render(
         request,
-        "comments/_edit_form.html",
-        {"csrf_token": get_csrf_token(request), "comment": comment},
+        "comment_edit.html",
+        {"comment": comment, "content": comment.content, "error": None},
+        user=user,
     )
 
 
-@router.post("/commentaires/{comment_id}/modifier", dependencies=[Depends(verify_csrf)])
-def modifier_commentaire(
-    comment_id: int,
+@router.post("/commentaires/{comment_id}/modifier")
+def edit_comment(
     request: Request,
-    content: str = Form(...),
-    membre: User = Depends(current_member),
-    db: Session = Depends(get_db),
-):
-    """RG-33/RG-35 (US-22)."""
-    try:
-        comment = update_comment(db, membre, comment_id, content)
-    except CommentNotFoundError as exc:
-        raise HTTPException(status_code=404) from exc
-    except NotCommentAuthorError as exc:
-        raise HTTPException(status_code=403) from exc
-    except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
-
-    return templates.TemplateResponse(
-        request,
-        "comments/_message.html",
-        {"csrf_token": get_csrf_token(request), "membre": membre, "comment": comment},
-    )
-
-
-@router.post("/commentaires/{comment_id}/supprimer", dependencies=[Depends(verify_csrf)])
-def supprimer_commentaire(
     comment_id: int,
-    membre: User = Depends(current_member),
+    content: str = Form(""),
+    user: User = Depends(current_member),
     db: Session = Depends(get_db),
 ):
-    """RG-35 (US-22)."""
+    comment = comments_service.get_own(db, user, comment_id)
     try:
-        delete_comment(db, membre, comment_id)
-    except CommentNotFoundError as exc:
-        raise HTTPException(status_code=404) from exc
-    except NotCommentAuthorError as exc:
-        raise HTTPException(status_code=403) from exc
+        comments_service.edit(db, comment, content)
+    except Invalid as exc:
+        return render(
+            request,
+            "comment_edit.html",
+            {"comment": comment, "content": content, "error": exc.message},
+            user=user,
+            status_code=422,
+        )
+    flash(request, "Message modifié.")
+    return redirect(f"/cadeaux/{comment.gift_id}/commentaires")
 
-    return HTMLResponse("")
+
+@router.post("/commentaires/{comment_id}/supprimer")
+def delete_comment(
+    request: Request,
+    comment_id: int,
+    user: User = Depends(current_member),
+    db: Session = Depends(get_db),
+):
+    comment = comments_service.get_own(db, user, comment_id)
+    gift = comment.gift
+    comments_service.delete(db, comment)
+    if is_htmx(request):
+        db.refresh(gift)
+        return _thread(request, user, gift)
+    return redirect(f"/cadeaux/{gift.id}/commentaires")

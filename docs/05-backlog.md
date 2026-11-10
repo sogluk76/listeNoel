@@ -2,7 +2,7 @@
 
 Statuts : ⬜ à faire · 🟨 en cours · ✅ livré (tests verts, doc à jour)
 
-L'ordre des lots est pensé pour avoir un site utilisable au plus tôt. Chaque user story est découpée en petits incréments validés un par un.
+Les lots 0 à 5 ont été livrés en une seule fois le 10/11/2026 (cf. journal). Les prochaines évolutions reprennent la méthode par petits incréments.
 
 ## Lot 0 — Socle technique
 | | Tâche |
@@ -13,6 +13,7 @@ L'ordre des lots est pensé pour avoir un site utilisable au plus tôt. Chaque u
 | ✅ | Fixtures de test : base en mémoire, membres Alice/Bob/Chloé, un admin |
 | ✅ | Layout Jinja2 de base + HTMX + protection CSRF |
 | ✅ | Commande `create-admin` |
+| ✅ | Design : tokens, composants, mode sombre (skill `design-site`) |
 
 ## Lot 1 — Authentification et administration des comptes
 | | US | Titre |
@@ -20,9 +21,9 @@ L'ordre des lots est pensé pour avoir un site utilisable au plus tôt. Chaque u
 | ✅ | US-04 | Se connecter en tant qu'admin |
 | ✅ | US-05 | Créer un compte membre |
 | ✅ | US-06 | Modifier ou désactiver un compte |
-| ✅ | US-03 | Blocage après 5 échecs |
 | ✅ | US-07 | Réinitialiser un mot de passe / débloquer un compte |
 | ✅ | US-01 | Se connecter en tant que membre |
+| ✅ | US-03 | Blocage après 5 échecs |
 | ✅ | US-02 | Se déconnecter |
 
 ## Lot 2 — Listes de cadeaux (cœur de l'appli)
@@ -49,20 +50,27 @@ L'ordre des lots est pensé pour avoir un site utilisable au plus tôt. Chaque u
 ## Lot 4 — Profil
 | | US | Titre |
 |---|---|---|
-| ⬜ | US-23 | Changer ma photo de profil |
-| ⬜ | US-24 | Changer mon mot de passe |
-| ⬜ | US-25 | Voir mes réservations |
+| ✅ | US-23 | Changer ma photo de profil |
+| ✅ | US-24 | Changer mon mot de passe |
+| ✅ | US-25 | Voir mes réservations |
 
 ## Lot 5 — Administration des cadeaux
 | | US | Titre |
 |---|---|---|
-| ⬜ | US-08 | Supprimer un cadeau (admin) |
-| ⬜ | US-09 | Clôturer l'année |
+| ✅ | US-08 | Supprimer un cadeau (admin) |
+| ✅ | US-09 | Clôturer l'année |
 
 ## Lot 6 — Mise en production
 | | Tâche |
 |---|---|
-| ⬜ | Dockerfile + choix du PaaS + volume persistant |
-| ⬜ | Variables d'environnement, `SECRET_KEY`, HTTPS |
+| 🟨 | Dockerfile écrit, **non testé** ; reste le choix du PaaS et le volume persistant |
+| ⬜ | Variables d'environnement (`NOEL_SECRET_KEY`, `NOEL_SECURE_COOKIES=true`), HTTPS |
 | ⬜ | Sauvegarde de la base et des images |
 | ⬜ | Création des comptes de la famille |
+
+## Idées pour la suite
+| | Idée |
+|---|---|
+| ⬜ | Aperçu de l'image avant envoi dans le formulaire cadeau |
+| ⬜ | Réservation et achat sans rechargement de page (HTMX) |
+| ⬜ | Page admin pour consulter les années archivées |

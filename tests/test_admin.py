@@ -1,0 +1,177 @@
+"""US-05 à US-09 : comptes, mots de passe, suppression de cadeaux, clôture de l'année."""
+
+from datetime import timedelta
+
+from sqlalchemy import select
+
+from app.config import settings
+from app.models import Comment, Gift, Reservation, User, utcnow
+from app.services import users as users_service
+from tests.conftest import PASSWORD, png_bytes, use_csrf
+
+NEW = {"name": "Dorian", "password": "motdepasse2", "confirmation": "motdepasse2"}
+
+
+def _member(db, name):
+    db.expire_all()
+    return db.scalar(select(User).where(User.first_name == name))
+
+
+def test_create_admin_refuse_un_nom_deja_pris(db, alice):
+    import pytest
+
+    from app.errors import Invalid
+
+    created = users_service.create_user(db, "chef", "motdepasse9", "motdepasse9", role="admin")
+    assert created.is_admin
+    with pytest.raises(Invalid):
+        users_service.create_user(db, "ALICE", "motdepasse9", "motdepasse9", role="admin")
+
+
+def test_us05_creer_un_compte(login, anonymous, db, admin):
+    client = login(admin)
+    response = client.post(
+        "/admin/membres", data=NEW, files={"photo": ("d.png", png_bytes(), "image/png")}
+    )
+    assert response.status_code == 303
+    member = _member(db, "Dorian")
+    assert member.is_member and member.is_active
+    assert member.password_hash.startswith("$argon2") and "motdepasse2" not in member.password_hash
+    assert (settings.media_dir / member.photo_path).is_file()
+    assert ">Dorian<" in anonymous.get("/login").text
+    login_response = anonymous.post(
+        "/login", data={"user_id": member.id, "password": "motdepasse2"}
+    )
+    assert login_response.status_code == 303
+
+
+def test_us05_refus(login, db, admin, alice):
+    client = login(admin)
+    cases = [
+        ({**NEW, "name": "aLiCe"}, "déjà utilisé"),
+        ({**NEW, "name": "  "}, "obligatoire"),
+        ({**NEW, "confirmation": "different"}, "confirmation"),
+        ({**NEW, "password": "court", "confirmation": "court"}, "au moins 8"),
+    ]
+    for data, message in cases:
+        response = client.post("/admin/membres", data=data)
+        assert response.status_code == 422 and message in response.text
+    response = client.post(
+        "/admin/membres", data=NEW, files={"photo": ("x.png", b"pas une image", "image/png")}
+    )
+    assert response.status_code == 422
+    assert _member(db, "Dorian") is None
+
+
+def test_us06_modifier_et_desactiver(login, db, admin, alice, bob, make_gift):
+    make_gift(alice, alice, "Vélo")
+    client = login(admin)
+    alice_client = login(alice)
+    page = client.get("/admin").text
+    assert "Alice" in page and "Gérer" in page and ">admin<" not in page
+
+    dup = client.post(f"/admin/membres/{alice.id}", data={"name": "bob", "is_active": "1"})
+    assert dup.status_code == 422
+
+    client.post(f"/admin/membres/{alice.id}", data={"name": "Alicia", "is_active": "1"})
+    assert "Alicia" in login(bob).get("/").text
+
+    client.post(f"/admin/membres/{alice.id}", data={"name": "Alicia"})  # case décochée
+    assert alice_client.get("/").headers["location"] == "/login"  # session invalidée
+    assert "Alicia" not in login(bob).get("/").text
+
+    client.post(f"/admin/membres/{alice.id}", data={"name": "Alicia", "is_active": "1"})
+    assert "Vélo" in login(bob).get(f"/personnes/{alice.id}").text  # données retrouvées
+
+
+def test_us06_admin_non_gerable_depuis_le_panel(login, admin):
+    client = login(admin)
+    assert client.get(f"/admin/membres/{admin.id}").status_code == 404
+    assert client.post(f"/admin/membres/{admin.id}", data={"name": "x"}).status_code == 404
+
+
+def test_us07_reinitialiser_et_debloquer(login, anonymous, db, admin, alice):
+    alice.failed_login_count = 5
+    alice.locked_until = utcnow() + timedelta(minutes=15)
+    db.commit()
+    client = login(admin)
+    assert "Débloquer" in client.get(f"/admin/membres/{alice.id}").text
+
+    client.post(f"/admin/membres/{alice.id}/debloquer")
+    assert "Débloquer" not in client.get(f"/admin/membres/{alice.id}").text
+    ok = anonymous.post("/login", data={"user_id": alice.id, "password": PASSWORD})
+    assert ok.status_code == 303
+    use_csrf(anonymous, "/")  # la connexion a renouvelé la session, donc le jeton
+
+    alice.locked_until = utcnow() + timedelta(minutes=15)
+    db.commit()
+    client.post(
+        f"/admin/membres/{alice.id}/mot-de-passe",
+        data={"password": "tout-nouveau", "confirmation": "tout-nouveau"},
+    )
+    old = anonymous.post("/login", data={"user_id": alice.id, "password": PASSWORD})
+    assert old.status_code == 401
+    new = anonymous.post("/login", data={"user_id": alice.id, "password": "tout-nouveau"})
+    assert new.status_code == 303  # la réinitialisation lève aussi le blocage
+
+
+def test_us08_liste_admin_sans_secrets_et_suppression(login, db, admin, alice, bob, make_gift):
+    client = login(admin)
+    client_png = login(bob)
+    client_png.post(
+        "/cadeaux", data={"name": "Vélo"}, files={"image": ("v.png", png_bytes(), "image/png")}
+    )
+    gift = db.scalar(select(Gift))
+    image = settings.media_dir / gift.image_path
+    gift.reservations.append(Reservation(user_id=alice.id))
+    gift.comments.append(Comment(author_id=alice.id, content="SECRET-COMMENTAIRE"))
+    gift.purchased_by_id = alice.id
+    db.commit()
+
+    html = client.get("/admin/cadeaux").text
+    assert "Vélo" in html and "Bob" in html
+    for hidden in ("SECRET", "Acheté", "Réservé", "pill"):
+        assert hidden not in html, hidden
+
+    client.post(f"/admin/cadeaux/{gift.id}/supprimer")  # sans confirmation
+    assert db.scalar(select(Gift)) is not None
+
+    client.post(f"/admin/cadeaux/{gift.id}/supprimer", data={"confirm": "1"})
+    db.expire_all()
+    assert db.scalar(select(Gift)) is None
+    assert db.scalar(select(Comment)) is None and db.scalar(select(Reservation)) is None
+    assert not image.exists()
+
+
+def test_us09_cloture_de_l_annee(login, db, admin, alice, bob, make_gift):
+    achete = make_gift(bob, bob, "Acheté-cadeau", purchased_by_id=alice.id)
+    retire = make_gift(bob, bob, "Retiré-cadeau", removed_at=utcnow())
+    reserve = make_gift(bob, bob, "Réservé-cadeau")
+    reserve.reservations.append(Reservation(user_id=alice.id))
+    libre = make_gift(bob, bob, "Libre-cadeau")
+    db.commit()
+    client = login(admin)
+
+    page = client.get("/admin/cloture").text
+    assert "<strong>2</strong>" in page
+    assert "Acheté-cadeau" not in page  # un nombre seulement, aucun détail
+
+    assert client.post("/admin/cloture", data={"year": "2026"}).status_code == 422
+    db.expire_all()
+    assert achete.archived_year is None
+
+    assert client.post("/admin/cloture", data={"year": "2026", "confirm": "1"}).status_code == 303
+    for g in (achete, retire, reserve, libre):
+        db.refresh(g)
+    assert achete.archived_year == 2026 and retire.archived_year == 2026
+    assert reserve.archived_year is None and libre.archived_year is None
+    assert [r.user_id for r in reserve.reservations] == [alice.id]  # réservations conservées
+
+    html = login(alice).get(f"/personnes/{bob.id}").text
+    assert "Réservé-cadeau" in html and "Libre-cadeau" in html
+    assert "Acheté-cadeau" not in html and "Retiré-cadeau" not in html
+
+    # Relançable sans erreur
+    assert client.post("/admin/cloture", data={"year": "2027", "confirm": "1"}).status_code == 303
+    db.refresh(achete)
+    assert achete.archived_year == 2026

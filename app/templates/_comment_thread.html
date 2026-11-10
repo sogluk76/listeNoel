@@ -1,0 +1,26 @@
+{% from "macros.html" import avatar %}
+{% if error %}<p class="alert alert--error" role="alert">{{ error }}</p>{% endif %}
+{% if not comments %}
+<p class="chat__empty muted">Pas encore de message. Lance la discussion !</p>
+{% else %}
+<ol class="chat">
+  {% for c in comments %}
+  {% set mine = c.author_id == user.id %}
+  <li class="chat__msg {% if mine %}chat__msg--mine{% endif %}">
+    {{ avatar(c.author, "sm") }}
+    <div class="chat__bubble">
+      <p class="chat__meta"><strong>{{ c.author.first_name }}</strong> <time>{{ c.created_at | dt }}</time>{% if c.updated_at %} <span>(modifié)</span>{% endif %}</p>
+      <p class="chat__text">{{ c.content }}</p>
+      {% if mine %}
+      <p class="chat__actions">
+        <a href="/commentaires/{{ c.id }}/modifier">Modifier</a>
+        <button type="button" class="link-btn"
+                hx-post="/commentaires/{{ c.id }}/supprimer" hx-target="#fil" hx-swap="innerHTML"
+                hx-confirm="Supprimer ce message ?">Supprimer</button>
+      </p>
+      {% endif %}
+    </div>
+  </li>
+  {% endfor %}
+</ol>
+{% endif %}
