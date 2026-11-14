@@ -18,6 +18,19 @@ AUTH_LOCKED = "locked"
 MSG_BAD_PASSWORD = "Mot de passe incorrect"
 MSG_LOCKED = "Compte temporairement bloqué, réessaie plus tard"
 
+THEME_AUTO = "auto"
+# Thèmes proposés dans le profil (RG-56) : clé -> (nom, description). Les couleurs
+# sont dans static/css/tokens.css, sous [data-theme="clé"].
+THEMES = {
+    THEME_AUTO: ("Automatique", "Clair ou sombre, selon ton appareil"),
+    "clair": ("Clair", "Papier crème et vert sapin"),
+    "sombre": ("Sombre", "Nuit de sapin"),
+    "neige": ("Neige", "Blanc pur et bleu glacier"),
+    "canneberge": ("Canneberge", "Rouge de Noël"),
+    "epices": ("Pain d'épices", "Tons chauds de cannelle"),
+    "minuit": ("Minuit", "Bleu nuit et or"),
+}
+
 
 def active_members(db: Session) -> list[User]:
     """Membres actifs par ordre alphabétique, sans l'admin (RG-03, RG-12)."""
@@ -89,6 +102,14 @@ def set_password(db: Session, user: User, password: str, confirmation: str) -> N
     check_new_password(password, confirmation)
     user.password_hash = hash_password(password)
     unlock(db, user, commit=False)
+    db.commit()
+
+
+def set_theme(db: Session, user: User, theme: str) -> None:
+    """Enregistre le thème d'affichage du membre (RG-56)."""
+    if theme not in THEMES:
+        raise Invalid("Ce thème n'existe pas.")
+    user.theme = theme
     db.commit()
 
 

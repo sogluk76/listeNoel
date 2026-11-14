@@ -88,6 +88,7 @@ Chaque règle a un identifiant `RG-xx` cité dans les user stories et dans les t
 - **RG-36** Chaque membre peut changer sa photo. L'admin peut aussi changer la photo d'un membre.
 - **RG-37** Pour changer son mot de passe, le membre saisit l'ancien, puis le nouveau deux fois (8 caractères minimum).
 - **RG-38** « Mes réservations » liste les cadeaux que j'ai réservés ou achetés, regroupés par destinataire, avec leur statut.
+- **RG-56** Chaque membre choisit son **thème d'affichage** dans son profil : Automatique (clair ou sombre selon l'appareil, choix par défaut), Clair, Sombre, Neige, Canneberge, Pain d'épices ou Minuit. Le thème est enregistré sur le compte : il s'applique à toutes les pages membre et suit le membre sur tous ses appareils. Un thème inconnu est refusé. La page de connexion, les pages d'erreur et le panel admin restent en thème automatique.
 
 ## Clôture de l'année
 

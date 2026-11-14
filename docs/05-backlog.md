@@ -54,6 +54,7 @@ Les lots 0 à 5 ont été livrés en une seule fois le 10/11/2026 (cf. journal).
 | ✅ | US-23 | Changer ma photo de profil |
 | ✅ | US-24 | Changer mon mot de passe |
 | ✅ | US-25 | Voir mes réservations |
+| ✅ | US-36 | Choisir mon thème d'affichage |
 
 ## Lot 5 — Administration des cadeaux
 | | US | Titre |

@@ -30,6 +30,7 @@ erDiagram
         INTEGER failed_login_count
         DATETIME locked_until "nullable"
         DATETIME last_seen_at "nullable, dernière activité"
+        TEXT theme "thème d'affichage, auto par défaut"
         DATETIME created_at
         DATETIME updated_at
     }
@@ -115,6 +116,7 @@ erDiagram
 | `comments` | Fil de discussion d'un cadeau |
 | `notifications` | Mention `@Prénom` dans un commentaire, à signaler au membre `user_id` (RG-42). Non lue ⇔ `read_at IS NULL` |
 | `users.last_seen_at` | Dernière activité du membre, notée au plus une fois par minute (« En ligne », RG-52) |
+| `users.theme` | Thème d'affichage choisi dans le profil (RG-56) : `auto`, `clair`, `sombre`, `neige`, `canneberge`, `epices`, `minuit`. La liste est dans `services/users.py`, les couleurs dans `tokens.css` |
 | `conversations` | Conversation privée : à deux ou groupe (RG-46) |
 | `conversations.direct_key` | `petit_id:grand_id` des deux membres : une seule conversation à deux par paire |
 | `conversations.creator_id` | Créateur du groupe (renommer, retirer, RG-53) |
@@ -147,6 +149,7 @@ CREATE TABLE users (
     failed_login_count INTEGER NOT NULL DEFAULT 0,
     locked_until       DATETIME,
     last_seen_at       DATETIME,
+    theme              TEXT    NOT NULL DEFAULT 'auto',
     created_at         DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at         DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
 );

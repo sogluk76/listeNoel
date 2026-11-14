@@ -46,6 +46,10 @@ class User(Base):
     failed_login_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     locked_until: Mapped[datetime | None] = mapped_column(DateTime)
     last_seen_at: Mapped[datetime | None] = mapped_column(DateTime)
+    # Thème d'affichage choisi dans le profil (RG-56). « auto » suit l'appareil.
+    theme: Mapped[str] = mapped_column(
+        String(20), nullable=False, default="auto", server_default="auto"
+    )
     created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=utcnow)
     updated_at: Mapped[datetime] = mapped_column(
         DateTime, nullable=False, default=utcnow, onupdate=utcnow

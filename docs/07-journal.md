@@ -68,3 +68,10 @@ Une entrée par incrément livré (tests verts). Format :
 - Fichiers : `app/templates/messages/_conversation.html`, `app/static/js/messages.js`, CSS `components.css`.
 - Tests : aucun ajouté côté serveur, total 153 verts. Vérifié dans Chrome sans interface avec une vraie image (6 vérifications : aperçu, retrait, envoi, téléphone 375 px), hors suite pytest.
 - Décisions validées : demande de Lukas.
+
+## 2026-11-14 — US-36 — choix du thème dans le profil
+- Fait : section « Apparence » du profil avec sept thèmes (Automatique, Clair, Sombre, Neige, Canneberge, Pain d'épices, Minuit), enregistrés sur le compte et appliqués à toutes les pages membre. Les tokens de couleur sont réorganisés par thème ; le rendu par défaut ne change pas.
+- Fichiers : `app/models.py`, `migrations/versions/0004_theme.py`, `app/services/users.py`, `app/routers/profile.py`, templates `base.html` et `profile.html`, CSS `tokens.css` et `components.css`, `tests/test_profile.py`, skill `design-site`.
+- Tests : 5 ajoutés, total 158 verts. Migration vérifiée sur une base vide (aller-retour). Contrastes des quatre nouvelles palettes calculés (19 couples texte / fond chacune, tous ≥ 4,5:1). Vérifié dans Chrome sans interface : 13 vérifications (application au clic pour chaque thème, thème clair forcé sur appareil sombre, pop-up des messages, téléphone 375 px), hors suite pytest. Ce passage a révélé un défaut corrigé avant livraison : la page ne se rechargeait pas après le clic.
+- Décisions validées : demande de Lukas, qui a laissé le choix des thèmes libre (nouvelle règle RG-56).
+- À savoir : dans le thème Sombre d'origine, trois couples de couleurs sont sous 4,5:1 sur le fond `--c-surface-2` (vert et rouge d'accent, 3,9 à 4,4). Ils existaient avant ce changement et n'ont pas été modifiés.

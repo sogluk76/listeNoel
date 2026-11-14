@@ -30,6 +30,21 @@ Le but est d'avoir un site **vraiment beau**, chaleureux et festif sans être ki
 
 Le mode sombre (`prefers-color-scheme: dark`) est prévu dans les tokens : nuit bleu sapin `#0F1A16`, surfaces `#17241F`, texte `#EEF2EC`.
 
+### Thèmes au choix du membre (RG-56)
+
+Le membre choisit son thème dans son profil ; il est posé sur `<html data-theme="…">`. Sans attribut, le thème est automatique (palette ci-dessus en clair, mode sombre selon l'appareil). Chaque thème redéfinit les **mêmes tokens** dans `tokens.css` : un composant n'a donc jamais à connaître le thème. `--c-pine` est la couleur primaire du thème et `--c-berry` son accent, quelle que soit leur teinte réelle.
+
+| Clé | Nom | Fond | Primaire | Accent |
+|---|---|---|---|---|
+| `clair` | Clair (base) | crème `#FBF7F0` | sapin `#1E4D3A` | canneberge `#B3263E` |
+| `sombre` | Sombre (base) | `#0F1A16` | `#4E9C78` | `#E0566D` |
+| `neige` | Neige | blanc `#FFFFFF` | bleu glacier `#1F5673` | `#B3263E` |
+| `canneberge` | Canneberge | `#FCF5F5` | rouge `#9B1B34` | sapin `#1E4D3A` |
+| `epices` | Pain d'épices | `#F9F1E7` | cannelle `#8A3B12` | `#A8233A` |
+| `minuit` | Minuit | bleu nuit `#0D1220` | or `#E0B85A` | `#E8607A` |
+
+Ajouter un thème : un bloc `[data-theme="clé"]` dans `tokens.css` avec tous les tokens de couleur, une entrée dans `THEMES` (`app/services/users.py`), et les contrastes vérifiés (4,5:1).
+
 ### Typographie
 - **Titres** : `Fraunces` (serif à caractère, poids 600, légère italique possible sur les grands titres).
 - **Texte et UI** : `Nunito Sans` (400, 600, 700).

@@ -1342,3 +1342,95 @@ body:has(.msg-dock) .page { padding-bottom: calc(var(--sp-8) + 64px); }
   min-width: 0;
   font-weight: 600;
 }
+
+/* --- Choix du thème (profil) ---------------------------------------------- */
+.theme-picker {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: var(--sp-3);
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.theme-card {
+  position: relative;
+  display: grid;
+  gap: var(--sp-2);
+  padding: var(--sp-2);
+  border: 2px solid var(--c-line);
+  border-radius: var(--r-md);
+  background: var(--c-surface);
+  cursor: pointer;
+  transition: border-color var(--dur-fast) var(--ease-out), box-shadow var(--dur-fast) var(--ease-out);
+}
+
+.theme-card:hover { border-color: var(--c-ink-soft); }
+
+.theme-card:has(input:checked) {
+  border-color: var(--c-pine);
+  box-shadow: var(--shadow-1);
+}
+
+.theme-card:has(input:focus-visible) { box-shadow: var(--focus-ring); }
+
+/* L'aperçu porte data-theme : ses var(--c-…) sont celles du thème représenté. */
+.theme-card__preview {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  height: 56px;
+  padding: 0 var(--sp-3);
+  border: 1px solid var(--c-line);
+  border-radius: var(--r-sm);
+  background: var(--c-bg);
+  overflow: hidden;
+}
+
+.theme-card__preview--auto {
+  gap: 0;
+  padding: 0;
+}
+
+.theme-card__half {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  background: var(--c-bg);
+}
+
+.theme-card__line {
+  flex: 1;
+  height: 10px;
+  border-radius: var(--r-pill);
+  background: var(--c-ink);
+}
+
+.theme-card__dot {
+  flex: none;
+  width: 22px;
+  height: 22px;
+  border-radius: var(--r-pill);
+  background: var(--c-pine);
+}
+
+.theme-card__dot--accent { background: var(--c-berry); }
+
+.theme-card__body {
+  display: grid;
+  padding: 0 var(--sp-1) var(--sp-1);
+}
+
+.theme-card__name { font-weight: 700; }
+
+.theme-card:has(input:checked) .theme-card__name::after {
+  content: " ✓";
+  color: var(--c-pine);
+}
+
+.theme-card__text {
+  color: var(--c-ink-soft);
+  font-size: var(--fs-sm);
+}

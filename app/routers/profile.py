@@ -1,6 +1,7 @@
-"""Profil : photo, mot de passe, mes réservations (US-23 à US-25)."""
+"""Profil : photo, mot de passe, mes réservations, thème (US-23 à US-25, US-36)."""
 
 from fastapi import APIRouter, Depends, File, Form, Request, UploadFile
+from fastapi.responses import Response
 from sqlalchemy.orm import Session
 
 from app.db import get_db
@@ -9,7 +10,7 @@ from app.models import User
 from app.security import current_member, flash, verify_password
 from app.services import images, visibility
 from app.services import users as users_service
-from app.web import redirect, render
+from app.web import is_htmx, redirect, render
 
 router = APIRouter()
 
@@ -18,7 +19,11 @@ def _page(request: Request, db: Session, user: User, error: str | None = None, s
     return render(
         request,
         "profile.html",
-        {"groups": visibility.my_reservations(db, user), "password_error": error},
+        {
+            "groups": visibility.my_reservations(db, user),
+            "password_error": error,
+            "themes": users_service.THEMES,
+        },
         user=user,
         status_code=status_code,
     )
@@ -60,6 +65,27 @@ def remove_photo(
     images.delete_image(old_path)
     flash(request, "Photo supprimée.")
     return redirect("/profil")
+
+
+@router.post("/profil/theme")
+def change_theme(
+    request: Request,
+    theme: str = Form(""),
+    user: User = Depends(current_member),
+    db: Session = Depends(get_db),
+):
+    """Change le thème d'affichage (RG-56).
+
+    Le choix part au clic (HTMX) : la page est rechargée pour appliquer le thème. Une
+    redirection vers la même adresse avec une ancre ne rechargerait rien.
+    """
+    try:
+        users_service.set_theme(db, user, theme)
+    except Invalid as exc:
+        flash(request, exc.message, "error")
+    if is_htmx(request):
+        return Response(status_code=200, headers={"HX-Refresh": "true"})
+    return redirect("/profil#apparence")
 
 
 @router.post("/profil/mot-de-passe")

@@ -65,3 +65,26 @@ La section « Mes réservations » liste les cadeaux non archivés sur lesquels 
 - Les cadeaux sont regroupés par destinataire, avec un sous-total.
 - Un cadeau retiré par son auteur apparaît marqué « Retiré ».
 - Les cadeaux archivés n'apparaissent pas.
+
+---
+
+## US-36 — Choisir mon thème d'affichage
+
+**En tant que** membre connecté
+**Je veux** choisir les couleurs du site dans mon profil
+**Afin de** l'avoir à mon goût, en clair comme en sombre
+
+### Analyse fonctionnelle
+
+La section « Apparence » du profil propose sept thèmes sous forme de cartes avec un aperçu de leurs couleurs (RG-56) : Automatique (clair ou sombre selon l'appareil, par défaut), Clair (papier crème et vert sapin), Sombre (nuit de sapin), Neige (blanc pur et bleu glacier), Canneberge (rouge de Noël), Pain d'épices (tons chauds) et Minuit (bleu nuit et or). Un clic sur une carte applique le thème tout de suite ; sans JavaScript, un bouton « Appliquer le thème » apparaît.
+
+Le thème est enregistré sur le compte (`users.theme`) et posé sur la balise `<html data-theme="…">`. Les couleurs de chaque thème sont dans `tokens.css`.
+
+### Critères d'acceptation
+- Par défaut, le thème est « Automatique » : aucune préférence n'est imposée à l'appareil.
+- Le thème choisi s'applique à toutes les pages membre, pop-up des messages comprise.
+- Il suit le compte : on le retrouve en se connectant ailleurs. Chaque membre a le sien.
+- Un thème clair forcé reste clair sur un appareil réglé en sombre, et inversement.
+- Un thème inconnu est refusé et le thème courant est conservé.
+- L'admin ne peut pas choisir de thème (403) ; la connexion et le panel admin restent en automatique.
+- Chaque thème proposé existe dans `tokens.css`, avec des contrastes texte / fond d'au moins 4,5:1.

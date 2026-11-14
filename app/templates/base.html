@@ -1,6 +1,6 @@
 {% from "macros.html" import avatar, icon %}
 <!doctype html>
-<html lang="fr">
+<html lang="fr"{% if user and user.is_member and user.theme != "auto" %} data-theme="{{ user.theme }}"{% endif %}>
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">

@@ -39,6 +39,40 @@
   {% endfor %}
 </section>
 
+<section class="card stack" id="apparence" aria-labelledby="mon-theme">
+  <div>
+    <h2 id="mon-theme">Apparence</h2>
+    <p class="muted">Le thème choisi te suit sur tous tes appareils.</p>
+  </div>
+  <form method="post" action="/profil/theme" hx-post="/profil/theme" hx-trigger="change">
+    {{ csrf(csrf_token) }}
+    <fieldset class="theme-picker">
+      <legend class="sr-only">Thème d'affichage</legend>
+      {% for key, (label, description) in themes.items() %}
+      <label class="theme-card">
+        <input class="sr-only" type="radio" name="theme" value="{{ key }}" {% if user.theme == key %}checked{% endif %}>
+        {# data-theme sur l'aperçu : il prend les couleurs du thème qu'il représente #}
+        <span class="theme-card__preview{% if key == 'auto' %} theme-card__preview--auto{% endif %}" {% if key != "auto" %}data-theme="{{ key }}"{% endif %} aria-hidden="true">
+          {% if key == "auto" %}
+          <span class="theme-card__half" data-theme="clair"><span class="theme-card__dot"></span></span>
+          <span class="theme-card__half" data-theme="sombre"><span class="theme-card__dot"></span></span>
+          {% else %}
+          <span class="theme-card__line"></span>
+          <span class="theme-card__dot"></span>
+          <span class="theme-card__dot theme-card__dot--accent"></span>
+          {% endif %}
+        </span>
+        <span class="theme-card__body">
+          <span class="theme-card__name">{{ label }}</span>
+          <span class="theme-card__text">{{ description }}</span>
+        </span>
+      </label>
+      {% endfor %}
+    </fieldset>
+    <noscript><button class="btn btn--primary" type="submit">Appliquer le thème</button></noscript>
+  </form>
+</section>
+
 <section class="card stack" aria-labelledby="ma-photo">
   <h2 id="ma-photo">Ma photo</h2>
   <form class="stack" method="post" action="/profil/photo" enctype="multipart/form-data">

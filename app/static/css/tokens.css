@@ -19,35 +19,6 @@
 }
 
 :root {
-  color-scheme: light dark;
-
-  /* Couleurs */
-  --c-bg: #FBF7F0;
-  --c-surface: #FFFFFF;
-  --c-surface-2: #F4EEE3;
-  --c-ink: #1F2A24;
-  --c-ink-soft: #5B6660;
-  --c-line: #E8E0D2;
-
-  --c-pine: #1E4D3A;
-  --c-pine-strong: #153829;
-  --c-pine-soft: #E4EFE8;
-  --c-berry: #B3263E;
-  --c-berry-strong: #8F1C30;
-  --c-berry-soft: #F8E3E6;
-  --c-gold: #C99A2E;
-  --c-gold-soft: #F7EDD3;
-  --c-on-accent: #FFFFFF;   /* texte sur pine/berry */
-
-  /* Teintes des avatars placeholder (choisies par hash du prénom) */
-  --c-on-avatar: #FFFFFF;
-  --avatar-1: #1E4D3A;
-  --avatar-2: #B3263E;
-  --avatar-3: #8A6415;
-  --avatar-4: #2F5D73;
-  --avatar-5: #6B4E7A;
-  --avatar-6: #8A5A3C;
-
   /* Typographie */
   --font-display: "Fraunces", Georgia, "Times New Roman", serif;
   --font-body: "Nunito Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
@@ -76,11 +47,6 @@
   --r-lg: 22px;
   --r-pill: 999px;
 
-  /* Ombres teintées */
-  --shadow-1: 0 1px 2px rgb(31 42 36 / 0.06), 0 4px 14px rgb(31 42 36 / 0.06);
-  --shadow-2: 0 2px 6px rgb(31 42 36 / 0.08), 0 12px 32px rgb(31 42 36 / 0.12);
-  --focus-ring: 0 0 0 3px var(--c-bg), 0 0 0 6px var(--c-gold);
-
   /* Mouvement */
   --dur-fast: 150ms;
   --dur-base: 220ms;
@@ -93,8 +59,79 @@
   --header-h: 60px;
 }
 
+/* ----------------------------------------------------------
+   Thèmes (RG-56). Le membre choisit le sien dans son profil ; il est posé sur
+   <html data-theme="…">. Sans attribut, le thème est « automatique » : clair ou
+   sombre selon l'appareil. Les mêmes sélecteurs servent aux aperçus du profil.
+   Chaque couple texte / fond a été vérifié à 4,5:1 au minimum.
+   ---------------------------------------------------------- */
+
+/* Clair : papier crème et vert sapin (thème de base) */
+:root,
+[data-theme="clair"] {
+  color-scheme: light;
+
+  /* Couleurs */
+  --c-bg: #FBF7F0;
+  --c-surface: #FFFFFF;
+  --c-surface-2: #F4EEE3;
+  --c-ink: #1F2A24;
+  --c-ink-soft: #5B6660;
+  --c-line: #E8E0D2;
+
+  --c-pine: #1E4D3A;
+  --c-pine-strong: #153829;
+  --c-pine-soft: #E4EFE8;
+  --c-berry: #B3263E;
+  --c-berry-strong: #8F1C30;
+  --c-berry-soft: #F8E3E6;
+  --c-gold: #C99A2E;
+  --c-gold-soft: #F7EDD3;
+  --c-on-accent: #FFFFFF;   /* texte sur pine/berry */
+
+  /* Teintes des avatars placeholder (choisies par hash du prénom) */
+  --c-on-avatar: #FFFFFF;
+  --avatar-1: #1E4D3A;
+  --avatar-2: #B3263E;
+  --avatar-3: #8A6415;
+  --avatar-4: #2F5D73;
+  --avatar-5: #6B4E7A;
+  --avatar-6: #8A5A3C;
+
+  --shadow-1: 0 1px 2px rgb(31 42 36 / 0.06), 0 4px 14px rgb(31 42 36 / 0.06);
+  --shadow-2: 0 2px 6px rgb(31 42 36 / 0.08), 0 12px 32px rgb(31 42 36 / 0.12);
+  --focus-ring: 0 0 0 3px var(--c-bg), 0 0 0 6px var(--c-gold);
+}
+
+:root:not([data-theme]) { color-scheme: light dark; }
+
+/* Sombre : nuit de sapin. Repris tel quel pour le thème automatique sur un appareil sombre. */
+[data-theme="sombre"] {
+  color-scheme: dark;
+
+  --c-bg: #0F1A16;
+  --c-surface: #17241F;
+  --c-surface-2: #1E2E28;
+  --c-ink: #EEF2EC;
+  --c-ink-soft: #A8B5AE;
+  --c-line: #2A3B34;
+
+  --c-pine: #4E9C78;
+  --c-pine-strong: #6BB592;
+  --c-pine-soft: #1B3329;
+  --c-berry: #E0566D;
+  --c-berry-strong: #EC7B8D;
+  --c-berry-soft: #3A1E24;
+  --c-gold: #E0B85A;
+  --c-gold-soft: #3A3120;
+  --c-on-accent: #0F1A16;
+
+  --shadow-1: 0 1px 2px rgb(0 0 0 / 0.3), 0 4px 14px rgb(0 0 0 / 0.25);
+  --shadow-2: 0 2px 6px rgb(0 0 0 / 0.35), 0 12px 32px rgb(0 0 0 / 0.4);
+}
+
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not([data-theme]) {
     --c-bg: #0F1A16;
     --c-surface: #17241F;
     --c-surface-2: #1E2E28;
@@ -115,6 +152,106 @@
     --shadow-1: 0 1px 2px rgb(0 0 0 / 0.3), 0 4px 14px rgb(0 0 0 / 0.25);
     --shadow-2: 0 2px 6px rgb(0 0 0 / 0.35), 0 12px 32px rgb(0 0 0 / 0.4);
   }
+}
+
+/* Neige : blanc pur et bleu glacier */
+[data-theme="neige"] {
+  color-scheme: light;
+
+  --c-bg: #FFFFFF;
+  --c-surface: #FFFFFF;
+  --c-surface-2: #EEF2F7;
+  --c-ink: #17212B;
+  --c-ink-soft: #52606D;
+  --c-line: #D9E1EA;
+
+  --c-pine: #1F5673;
+  --c-pine-strong: #163F55;
+  --c-pine-soft: #DDEBF3;
+  --c-berry: #B3263E;
+  --c-berry-strong: #8F1C30;
+  --c-berry-soft: #F8E3E6;
+  --c-gold: #C99A2E;
+  --c-gold-soft: #F5EDD6;
+  --c-on-accent: #FFFFFF;
+
+  --shadow-1: 0 1px 2px rgb(23 33 43 / 0.06), 0 4px 14px rgb(23 33 43 / 0.07);
+  --shadow-2: 0 2px 6px rgb(23 33 43 / 0.08), 0 12px 32px rgb(23 33 43 / 0.13);
+}
+
+/* Canneberge : rouge de Noël, le vert sapin passe en accent */
+[data-theme="canneberge"] {
+  color-scheme: light;
+
+  --c-bg: #FCF5F5;
+  --c-surface: #FFFFFF;
+  --c-surface-2: #F6E8E9;
+  --c-ink: #2A1A1D;
+  --c-ink-soft: #6A5458;
+  --c-line: #EBD9DB;
+
+  --c-pine: #9B1B34;
+  --c-pine-strong: #7A1328;
+  --c-pine-soft: #F6DEE2;
+  --c-berry: #1E4D3A;
+  --c-berry-strong: #153829;
+  --c-berry-soft: #E4EFE8;
+  --c-gold: #C99A2E;
+  --c-gold-soft: #F7EDD3;
+  --c-on-accent: #FFFFFF;
+
+  --shadow-1: 0 1px 2px rgb(42 26 29 / 0.06), 0 4px 14px rgb(42 26 29 / 0.06);
+  --shadow-2: 0 2px 6px rgb(42 26 29 / 0.08), 0 12px 32px rgb(42 26 29 / 0.12);
+}
+
+/* Pain d'épices : tons chauds de cannelle */
+[data-theme="epices"] {
+  color-scheme: light;
+
+  --c-bg: #F9F1E7;
+  --c-surface: #FFFAF3;
+  --c-surface-2: #F1E3D0;
+  --c-ink: #2E1F14;
+  --c-ink-soft: #655041;
+  --c-line: #E6D3BC;
+
+  --c-pine: #8A3B12;
+  --c-pine-strong: #6B2C0C;
+  --c-pine-soft: #F3DFCF;
+  --c-berry: #A8233A;
+  --c-berry-strong: #861A2D;
+  --c-berry-soft: #F6E0E2;
+  --c-gold: #B98524;
+  --c-gold-soft: #F5E8C8;
+  --c-on-accent: #FFFFFF;
+
+  --shadow-1: 0 1px 2px rgb(46 31 20 / 0.07), 0 4px 14px rgb(46 31 20 / 0.07);
+  --shadow-2: 0 2px 6px rgb(46 31 20 / 0.09), 0 12px 32px rgb(46 31 20 / 0.14);
+}
+
+/* Minuit : bleu nuit et or */
+[data-theme="minuit"] {
+  color-scheme: dark;
+
+  --c-bg: #0D1220;
+  --c-surface: #151C2E;
+  --c-surface-2: #1D2740;
+  --c-ink: #EEF1F8;
+  --c-ink-soft: #A7B0C4;
+  --c-line: #2A3552;
+
+  --c-pine: #E0B85A;
+  --c-pine-strong: #EBCB7C;
+  --c-pine-soft: #2E2A1C;
+  --c-berry: #E8607A;
+  --c-berry-strong: #F08A9B;
+  --c-berry-soft: #3A1E28;
+  --c-gold: #E0B85A;
+  --c-gold-soft: #332C18;
+  --c-on-accent: #0D1220;
+
+  --shadow-1: 0 1px 2px rgb(0 0 0 / 0.3), 0 4px 14px rgb(0 0 0 / 0.25);
+  --shadow-2: 0 2px 6px rgb(0 0 0 / 0.35), 0 12px 32px rgb(0 0 0 / 0.4);
 }
 
 @media (prefers-reduced-motion: reduce) {
