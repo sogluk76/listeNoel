@@ -67,6 +67,17 @@ Les lots 0 à 5 ont été livrés en une seule fois le 10/11/2026 (cf. journal).
 | ✅ | US-27 | Mentionner quelqu'un dans un commentaire |
 | ✅ | US-28 | Voir mes notifications (cloche et page) |
 
+## Lot 8 — Messages privés
+| | US | Titre |
+|---|---|---|
+| ✅ | US-29 | Écrire à un membre (conversation à deux, pop-up) |
+| ✅ | US-30 | Être prévenu d'un nouveau message (bulle, cloche) |
+| ✅ | US-31 | Modifier / supprimer mon message |
+| ✅ | US-32 | Savoir si mon message a été vu |
+| ✅ | US-33 | Voir si quelqu'un est en ligne |
+| ✅ | US-34 | Envoyer une photo |
+| ✅ | US-35 | Discuter à plusieurs dans un groupe |
+
 ## Lot 6 — Mise en production
 | | Tâche |
 |---|---|

@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 
 from app.models import Comment, Gift, Notification, Reservation, User
 from app.services import images
+from app.services import messages as messages_service
 from app.services.text import fold
 
 
@@ -25,7 +26,9 @@ def delete_member(db: Session, member: User) -> None:
     Disparaissent : sa liste (cadeaux dont il est destinataire), les cadeaux qu'il a créés
     pour d'autres, ses réservations et ses commentaires. Un cadeau qu'il avait marqué
     « acheté » redevient réservé ou disponible. Les cadeaux archivés sont concernés aussi.
+    Ses messages privés et ses conversations à deux disparaissent également (RG-54).
     """
+    private_photos = messages_service.purge_member(db, member)
     for notification in db.scalars(select(Notification).where(Notification.user_id == member.id)):
         db.delete(notification)
     for reservation in db.scalars(select(Reservation).where(Reservation.user_id == member.id)):
@@ -51,6 +54,7 @@ def delete_member(db: Session, member: User) -> None:
     db.commit()
     for path in image_paths:
         images.delete_image(path)
+    messages_service.delete_photos(private_photos)
 
 
 def _to_archive():

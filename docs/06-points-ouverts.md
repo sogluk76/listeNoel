@@ -25,3 +25,8 @@ Légende : 🟡 appliqué par défaut, à confirmer · ☐ encore ouvert · ☑ 
 | 🟡 PO-12 | Suppression d'un cadeau par l'admin | La confirmation se fait en dépliant « Supprimer » puis « Oui, supprimer » |
 | 🟡 PO-13 | « Mes réservations » : total par destinataire | Les cadeaux retirés ne sont pas comptés dans le total |
 | 🟡 PO-14 | Direction artistique | Version sobre de la palette du skill `design-site` (crème, vert sapin, touches canneberge et or), sans décor festif |
+| 🟡 PO-15 | Messages : compteurs | La bulle compte les **messages** non lus, la cloche compte les **conversations** non lues (RG-50) |
+| 🟡 PO-16 | Messages : créateur d'un groupe qui part | Le plus ancien participant devient créateur ; un groupe vide est supprimé (RG-53) |
+| 🟡 PO-17 | Messages : sans JavaScript | La bulle mène à la messagerie en pleine page `/messages`, qui sert aussi de cible aux liens directs (RG-55) |
+| 🟡 PO-18 | Messages : conversation à deux ouverte sans rien envoyer | Elle n'apparaît dans la liste de personne tant qu'elle est vide |
+| 🟡 PO-19 | Messages : présence | Le rafraîchissement automatique de la bulle compte comme une activité : « En ligne » veut dire « a le site ouvert » (RG-52) |

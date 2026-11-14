@@ -1,0 +1,14 @@
+{% from "macros.html" import avatar, icon %}
+{# Bulle « Messages » : rechargée régulièrement, avec le compteur de la cloche (RG-55). #}
+<a class="msg-bubble" id="msg-bubble" href="/messages" data-messages-open data-messages-toggle
+   hx-get="/messages/bulle" hx-trigger="every {{ settings.messages_dock_poll_seconds }}s"
+   hx-target="this" hx-swap="outerHTML"
+   aria-label="Messages{% if dock.unread %} : {{ dock.unread }} non lu{{ 's' if dock.unread > 1 else '' }}{% endif %}">
+  {{ icon("plane") }}
+  <span class="msg-bubble__label">Messages</span>
+  {% if dock.avatars %}
+  <span class="msg-bubble__avatars">{% for face in dock.avatars %}{{ avatar(face, "xs") }}{% endfor %}</span>
+  {% endif %}
+  {% if dock.unread %}<span class="badge msg-bubble__count">{{ dock.unread if dock.unread < 100 else "99+" }}</span>{% endif %}
+</a>
+{% if oob %}<span id="bell-count" hx-swap-oob="true">{% include "_bell_count.html" %}</span>{% endif %}

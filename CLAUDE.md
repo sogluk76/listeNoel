@@ -41,7 +41,8 @@ Stack : Python 3.12+, FastAPI, Jinja2 + HTMX, SQLite + SQLAlchemy 2 + Alembic, A
 - **Les services portent les règles métier** (`app/services/`, sans HTTP, testables sans serveur). Les routers ne font que HTTP + templates.
 - **Contrôle d'accès par dépendances FastAPI** : `current_member` et `current_admin` (`app/security.py`). Un membre n'accède jamais à `/admin`, l'admin n'accède jamais aux écrans membres (RG-09).
 - **Protection CSRF** sur tous les formulaires POST.
-- **Pas de JavaScript maison** au-delà de HTMX, sauf besoin justifié et validé. Seule exception : `app/static/js/mentions.js`.
+- **Pas de JavaScript maison** au-delà de HTMX, sauf besoin justifié et validé. Seules exceptions : `app/static/js/mentions.js` et `app/static/js/messages.js` (pop-up des messages privés).
+- **Messages privés** : toute lecture de conversations, de messages ou de photos passe par `app/services/messages.py`, qui vérifie que le membre est participant (RG-47). Tests dans `tests/test_messages.py`.
 - **Tout changement de schéma passe par une migration Alembic** et une mise à jour de `docs/03-modele-donnees.md`.
 - Interface : charger le skill `design-site` avant de toucher un template ou le CSS.
 

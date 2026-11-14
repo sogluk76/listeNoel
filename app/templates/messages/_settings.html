@@ -1,0 +1,63 @@
+{% from "macros.html" import avatar, icon, csrf %}
+{% set base = "/messages/" ~ conversation.id %}
+<div class="msg-view" data-view-url="{{ base }}/reglages">
+  <header class="msg-head">
+    <a class="icon-btn" href="{{ base }}" hx-get="{{ base }}" aria-label="Retour à la conversation">{{ icon("back") }}</a>
+    <div class="msg-head__who">
+      <h2 class="msg-head__title">{{ conversation.name }}</h2>
+      <p class="msg-head__status">Réglages du groupe</p>
+    </div>
+    <button type="button" class="icon-btn msg-head__close" data-messages-close aria-label="Fermer les messages">{{ icon("close") }}</button>
+  </header>
+  <div class="msg-body msg-settings">
+    {% if error %}<p class="alert alert--error" role="alert">{{ error }}</p>{% endif %}
+
+    {% if is_creator %}
+    <form class="msg-settings__row" method="post" action="{{ base }}/nom" hx-post="{{ base }}/nom">
+      {{ csrf(csrf_token) }}
+      <div class="field">
+        <label for="group-rename">Nom du groupe</label>
+        <input id="group-rename" type="text" name="name" maxlength="60" required value="{{ conversation.name }}">
+      </div>
+      <button class="btn btn--secondary" type="submit">Renommer</button>
+    </form>
+    {% endif %}
+
+    <section>
+      <h3 class="msg-section">Participants</h3>
+      <ul class="msg-members">
+        {% for m in conversation.members %}
+        <li>
+          {{ avatar(m.user, "sm") }}
+          <span class="msg-members__name">{{ m.user.first_name }}{% if m.user_id == user.id %} (toi){% endif %}{% if m.user_id == conversation.creator_id %} <span class="muted">· créateur</span>{% endif %}</span>
+          {% if is_creator and m.user_id != user.id %}
+          <button type="button" class="link-btn link-btn--danger"
+                  hx-post="{{ base }}/membres/{{ m.user_id }}/retirer"
+                  hx-confirm="Retirer {{ m.user.first_name }} du groupe ?">Retirer</button>
+          {% endif %}
+        </li>
+        {% endfor %}
+      </ul>
+    </section>
+
+    {% if addable %}
+    <form class="msg-settings__row" method="post" action="{{ base }}/membres" hx-post="{{ base }}/membres">
+      {{ csrf(csrf_token) }}
+      <div class="field">
+        <label for="group-add">Ajouter quelqu'un</label>
+        <select id="group-add" name="user_id" required>
+          {% for p in addable %}<option value="{{ p.id }}">{{ p.first_name }}</option>{% endfor %}
+        </select>
+        <p class="field__help">La personne ajoutée verra tout l'historique.</p>
+      </div>
+      <button class="btn btn--secondary" type="submit">Ajouter</button>
+    </form>
+    {% endif %}
+
+    <form method="post" action="{{ base }}/quitter" hx-post="{{ base }}/quitter"
+          hx-confirm="Quitter le groupe « {{ conversation.name }} » ?">
+      {{ csrf(csrf_token) }}
+      <button class="btn btn--danger btn--block" type="submit">Quitter le groupe</button>
+    </form>
+  </div>
+</div>

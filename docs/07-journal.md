@@ -54,3 +54,17 @@ Une entrée par incrément livré (tests verts). Format :
 - Tests : 2 ajoutés, total 124 verts. Entrée / Maj+Entrée vérifiés dans Chrome sans interface (7 vérifications, dont la cohabitation avec la liste de mentions), hors suite pytest.
 - Décisions validées : demandes de Lukas ; règles RG-33 et RG-45 précisées.
 - Non fait : comportement sur téléphone non vérifié.
+
+## 2026-11-14 — US-29 à US-35 — messages privés, livrés en une fois
+- Fait : à la demande de Lukas (« en one shot »), en dérogation ponctuelle à la méthode par petits incréments. Conversations à deux et groupes, pop-up en bas à droite (bulle « Messages », plein écran sur téléphone), non-lus sur la bulle et dans la cloche, modification et suppression de ses messages, « Vu », « En ligne », photos privées. La suppression d'un compte emporte ses messages.
+- Fichiers : `app/models.py`, `migrations/versions/0003_messages_prives.py`, `app/services/messages.py` (nouveau), `app/routers/messages.py` (nouveau), `app/static/js/messages.js` (nouveau), templates `messages/` (nouveau), `_bell_count.html` (nouveau), `base.html`, `macros.html`, `notifications.html`, `app/web.py`, `app/security.py`, `app/config.py`, `app/main.py`, `app/services/images.py`, `app/services/admin.py`, `app/routers/notifications.py`, CSS `components.css`, `Dockerfile`, `.env.example`, `.gitignore`, `tests/test_messages.py` (nouveau), `tests/conftest.py`.
+- Tests : 29 ajoutés, total 153 verts. Migration vérifiée sur une base vide (`upgrade`, `alembic check`, aller-retour `downgrade` / `upgrade`). Pop-up vérifiée dans Chrome sans interface sur une base d'essai : 41 vérifications (ouverture, envoi avec Entrée, réception d'un message en direct, fil calé en bas, réouverture après changement de page, cloche mise à jour sans recharger, modification, suppression, groupe, réglages, téléphone 375 px, mode sombre, pleine page), hors suite pytest.
+- Décisions validées par Lukas : groupes dès la première version ; HTMX + petit JavaScript maison (`messages.js`, deuxième exception) ; une ligne par conversation dans la cloche ; modifier / supprimer, « Vu », photos et « En ligne » inclus ; admin sans aucun accès ; pas de temps réel (5 s et 20 s) ; plein écran sur téléphone ; règles des groupes (RG-53) ; suppression sans trace ; photos servies aux seuls participants ; compte désactivé lisible mais fermé ; messages conservés à la clôture ; présence visible par tous. Nouvelles règles RG-46 à RG-55, RG-41 et RG-45 complétées.
+- Décisions appliquées par défaut, à confirmer : PO-15 à PO-19.
+- Non fait : envoi réel d'une photo depuis le navigateur et rendu sur un vrai téléphone non vérifiés à la main (l'envoi de photo est couvert par pytest). `Dockerfile` toujours non testé. Les photos privées demandent le même volume persistant que les images (`NOEL_PRIVATE_MEDIA_DIR`).
+
+## 2026-11-14 — US-34 — aperçu de la photo jointe
+- Fait : quand on choisit une photo dans un message privé, un bandeau au-dessus de la zone de saisie montre la miniature, le nom du fichier et une croix pour la retirer. Il disparaît après l'envoi.
+- Fichiers : `app/templates/messages/_conversation.html`, `app/static/js/messages.js`, CSS `components.css`.
+- Tests : aucun ajouté côté serveur, total 153 verts. Vérifié dans Chrome sans interface avec une vraie image (6 vérifications : aperçu, retrait, envoi, téléphone 375 px), hors suite pytest.
+- Décisions validées : demande de Lukas.

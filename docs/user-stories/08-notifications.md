@@ -48,9 +48,9 @@ C'est le seul JavaScript maison du site (`app/static/js/mentions.js`), validé p
 
 ### Analyse fonctionnelle
 
-L'en-tête de toutes les pages membre affiche une cloche. Une pastille indique le nombre de notifications non lues ; elle est absente s'il n'y en a pas. La cloche ouvre la page « Notifications », qui liste les mentions de la plus récente à la plus ancienne : qui m'a mentionné, sur quel cadeau et pour qui, un extrait du message et la date. Chaque ligne mène au message dans le fil. Ouvrir la page marque toutes les notifications comme lues (RG-45) ; celles qui étaient nouvelles portent encore l'étiquette « Nouveau » à cet affichage. Ouvrir directement les commentaires d'un cadeau marque aussi comme lues les notifications de ce fil.
+L'en-tête de toutes les pages membre affiche une cloche. Une pastille indique le nombre de notifications non lues (mentions, plus une par conversation privée non lue, cf. US-30) ; elle est absente s'il n'y en a pas. La cloche ouvre la page « Notifications », qui liste les mentions de la plus récente à la plus ancienne : qui m'a mentionné, sur quel cadeau et pour qui, un extrait du message et la date. Chaque ligne mène au message dans le fil. Ouvrir la page marque toutes les notifications comme lues (RG-45) ; celles qui étaient nouvelles portent encore l'étiquette « Nouveau » à cet affichage. Ouvrir directement les commentaires d'un cadeau marque aussi comme lues les notifications de ce fil.
 
-Le compteur est calculé au chargement de chaque page (pas de rafraîchissement automatique).
+Le compteur est calculé au chargement de chaque page, puis rafraîchi toutes les 20 secondes avec la bulle « Messages » (RG-55).
 
 ### Critères d'acceptation
 - La pastille affiche le nombre de notifications non lues, sur toutes les pages membre.

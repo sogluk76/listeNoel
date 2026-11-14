@@ -13,6 +13,7 @@ from sqlalchemy.orm import object_session
 from app.config import settings
 from app.models import User
 from app.security import csrf_token, pop_flashes
+from app.services import messages as messages_service
 from app.services import visibility
 from app.services.notifications import render_mentions
 from app.services.text import color_index, initials
@@ -61,15 +62,28 @@ templates.env.filters["price"] = format_price
 templates.env.filters["initials"] = initials
 templates.env.filters["color_index"] = color_index
 templates.env.filters["mentions"] = render_mentions
+templates.env.filters["ago"] = messages_service.ago
+templates.env.filters["presence"] = messages_service.presence
 templates.env.globals["STATUS_LABELS"] = STATUS_LABELS
 
 
-def _notification_count(user: User | None) -> int:
-    """Nombre affiché sur la cloche de l'en-tête (RG-45). Toujours 0 pour l'admin."""
-    if user is None or not user.is_member:
-        return 0
-    db = object_session(user)
-    return visibility.unread_notification_count(db, user) if db is not None else 0
+def member_chrome(user: User | None) -> dict:
+    """Ce qu'affichent la cloche et la bulle « Messages » (RG-45, RG-50). Rien pour l'admin.
+
+    La cloche compte les mentions non lues, plus une par conversation qui a du non-lu.
+    """
+    db = object_session(user) if user is not None and user.is_member else None
+    if db is None:
+        return {"notification_count": 0, "dock": None}
+    summaries = messages_service.summaries(db, user)
+    unread = [s for s in summaries if s.unread]
+    return {
+        "notification_count": visibility.unread_notification_count(db, user) + len(unread),
+        "dock": {
+            "unread": sum(s.unread for s in unread),
+            "avatars": [s.avatar for s in summaries[:3]],
+        },
+    }
 
 
 def render(
@@ -81,7 +95,7 @@ def render(
 ) -> HTMLResponse:
     ctx = dict(context or {})
     ctx["user"] = user
-    ctx["notification_count"] = _notification_count(user)
+    ctx.update(member_chrome(user))
     ctx["csrf_token"] = csrf_token(request)
     ctx["flashes"] = pop_flashes(request)
     ctx["settings"] = settings

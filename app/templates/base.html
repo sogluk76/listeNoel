@@ -12,6 +12,7 @@
   <link rel="stylesheet" href="/static/css/components.css">
   <link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
   <script src="/static/js/htmx.min.js" defer></script>
+  {% if user and user.is_member %}<script src="/static/js/messages.js" defer></script>{% endif %}
   {% block scripts %}{% endblock %}
 </head>
 <body class="{% block body_class %}{% endblock %}" hx-headers='{"X-CSRF-Token": "{{ csrf_token }}"}'>
@@ -24,7 +25,7 @@
       <a class="app-header__bell" href="/notifications" title="Notifications"
          aria-label="Notifications{% if notification_count %} : {{ notification_count }} non lue{{ 's' if notification_count > 1 else '' }}{% endif %}">
         {{ icon("bell") }}
-        {% if notification_count %}<span class="badge app-header__bell-count">{{ notification_count if notification_count < 100 else "99+" }}</span>{% endif %}
+        <span id="bell-count">{% include "_bell_count.html" %}</span>
       </a>
       <a class="app-header__profile" href="/profil" aria-label="Mon profil" title="Mon profil">{{ avatar(user, "sm") }}</a>
     </nav>
@@ -38,5 +39,14 @@
   {% endfor %}
   {% block content %}{% endblock %}
 </main>
+{% block dock %}
+{% if user and user.is_member and dock %}
+<aside class="msg-dock" id="msg-dock" data-open="false" aria-label="Messages privés">
+  {% include "messages/_bubble.html" %}
+  <section class="msg-panel" id="messages-panel" hidden aria-label="Messages"
+           hx-target="#messages-panel" hx-swap="innerHTML" hx-sync="this:replace"></section>
+</aside>
+{% endif %}
+{% endblock %}
 </body>
 </html>

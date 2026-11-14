@@ -11,7 +11,7 @@ from starlette.middleware.sessions import SessionMiddleware
 from app.config import settings
 from app.db import run_migrations
 from app.errors import Forbidden, NotAuthenticated, NotFound
-from app.routers import admin, auth, comments, gifts, notifications, people, profile
+from app.routers import admin, auth, comments, gifts, messages, notifications, people, profile
 from app.security import csrf_protect
 from app.web import htmx_redirect, redirect, render
 
@@ -60,10 +60,11 @@ def create_app() -> FastAPI:
     )
 
     settings.media_dir.mkdir(parents=True, exist_ok=True)
+    settings.private_media_dir.mkdir(parents=True, exist_ok=True)
     app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
     app.mount("/media", StaticFiles(directory=settings.media_dir), name="media")
 
-    for module in (auth, people, gifts, comments, notifications, profile, admin):
+    for module in (auth, people, gifts, comments, notifications, messages, profile, admin):
         app.include_router(module.router)
 
     @app.exception_handler(NotAuthenticated)

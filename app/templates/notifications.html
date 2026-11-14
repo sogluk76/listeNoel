@@ -5,18 +5,32 @@
 <div class="page-head">
   <div>
     <h1>Notifications</h1>
-    <p class="muted">Les messages où quelqu'un t'a mentionné avec @{{ user.first_name }}.</p>
+    <p class="muted">Tes messages privés non lus et les commentaires où quelqu'un a écrit @{{ user.first_name }}.</p>
   </div>
 </div>
 
-{% if not items %}
+{% if not items and not conversations %}
 <div class="empty">
   {{ icon("bell") }}
   <p>Aucune notification pour l'instant.</p>
-  <p>Quand quelqu'un écrira @{{ user.first_name }} dans un commentaire, tu le verras ici.</p>
+  <p>Quand quelqu'un t'écrira, ou écrira @{{ user.first_name }} dans un commentaire, tu le verras ici.</p>
 </div>
 {% else %}
 <ul class="list">
+  {% for s in conversations %}
+  <li>
+    <a class="notif notif--unread" href="/messages/{{ s.conversation.id }}" data-messages-open>
+      {{ avatar(s.avatar, "md") }}
+      <span class="notif__body">
+        <span class="notif__title">{% if s.conversation.is_group %}{{ s.unread }} nouveau{{ 'x' if s.unread > 1 else '' }} message{{ 's' if s.unread > 1 else '' }} dans « {{ s.title }} »{% else %}<strong>{{ s.title }}</strong> t'a envoyé {{ s.unread if s.unread > 1 else 'un' }} message{{ 's' if s.unread > 1 else '' }}{% endif %}</span>
+        <span class="notif__text">{{ s.preview | truncate(140) }}</span>
+        <time class="notif__time">{{ s.activity | dt }}</time>
+      </span>
+      <span class="pill pill--bought">Nouveau</span>
+      {{ icon("chevron") }}
+    </a>
+  </li>
+  {% endfor %}
   {% for n, unread in items %}
   {% set c = n.comment %}
   <li>

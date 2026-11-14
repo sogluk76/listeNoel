@@ -10,6 +10,7 @@ from sqlalchemy.orm import Session
 from app.db import get_db
 from app.models import User
 from app.security import current_member
+from app.services import messages as messages_service
 from app.services import notifications as notifications_service
 from app.services import visibility
 from app.web import render
@@ -25,8 +26,17 @@ def notifications_page(
     user: User = Depends(current_member),
     db: Session = Depends(get_db),
 ):
-    """Affiche les notifications, puis les marque toutes comme lues (RG-45)."""
+    """Affiche les notifications, puis marque les mentions comme lues (RG-45).
+
+    Les conversations non lues restent comptées tant qu'elles ne sont pas ouvertes (RG-50).
+    """
+    conversations = messages_service.unread_summaries(db, user)
     visible = visibility.my_notifications(db, user)
     items = [(n, n.read_at is None) for n in visible[:PAGE_SIZE]]
     notifications_service.mark_read(db, visible)
-    return render(request, "notifications.html", {"items": items}, user=user)
+    return render(
+        request,
+        "notifications.html",
+        {"items": items, "conversations": conversations},
+        user=user,
+    )

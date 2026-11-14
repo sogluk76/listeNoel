@@ -1,0 +1,57 @@
+{% from "macros.html" import avatar, icon, csrf %}
+<div class="msg-view" data-view-url="/messages/nouveau">
+  <header class="msg-head">
+    <a class="icon-btn" href="/messages" hx-get="/messages" aria-label="Retour aux conversations">{{ icon("back") }}</a>
+    <h2 class="msg-head__title">Nouveau message</h2>
+    <button type="button" class="icon-btn msg-head__close" data-messages-close aria-label="Fermer les messages">{{ icon("close") }}</button>
+  </header>
+  <div class="msg-body">
+    {% if error %}<p class="alert alert--error" role="alert">{{ error }}</p>{% endif %}
+    {% if not contacts %}
+    <div class="empty">
+      {{ icon("users") }}
+      <p>Il n'y a encore personne d'autre à qui écrire.</p>
+    </div>
+    {% else %}
+    <details class="msg-group" {% if error %}open{% endif %}>
+      <summary class="msg-row">
+        <span class="avatar avatar--md msg-group__icon">{{ icon("users") }}</span>
+        <span class="msg-row__body"><span class="msg-row__title">Créer un groupe</span><span class="msg-row__preview">Une conversation à plusieurs</span></span>
+        {{ icon("chevron") }}
+      </summary>
+      <form class="msg-group__form" method="post" action="/messages/groupes" hx-post="/messages/groupes">
+        {{ csrf(csrf_token) }}
+        <div class="field">
+          <label for="group-name">Nom du groupe</label>
+          <input id="group-name" type="text" name="name" maxlength="60" required value="{{ form.name }}" placeholder="Cadeau commun pour Mamie">
+        </div>
+        <fieldset class="msg-group__members">
+          <legend class="field__label">Avec qui ?</legend>
+          {% for c in contacts %}
+          <label class="check"><input type="checkbox" name="members" value="{{ c.id }}" {% if c.id in form.members %}checked{% endif %}>{{ avatar(c, "sm") }}<span>{{ c.first_name }}</span></label>
+          {% endfor %}
+        </fieldset>
+        <button class="btn btn--primary btn--block" type="submit">Créer le groupe</button>
+      </form>
+    </details>
+    <h3 class="msg-section">Écrire à…</h3>
+    <ul class="msg-list">
+      {% for c in contacts %}
+      <li>
+        <form method="post" action="/messages/avec/{{ c.id }}" hx-post="/messages/avec/{{ c.id }}">
+          {{ csrf(csrf_token) }}
+          <button class="msg-row" type="submit">
+            {{ avatar(c, "md") }}
+            <span class="msg-row__body">
+              <span class="msg-row__title">{{ c.first_name }}</span>
+              <span class="msg-row__preview">{{ c | presence }}</span>
+            </span>
+            {{ icon("chevron") }}
+          </button>
+        </form>
+      </li>
+      {% endfor %}
+    </ul>
+    {% endif %}
+  </div>
+</div>

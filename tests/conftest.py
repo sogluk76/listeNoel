@@ -8,6 +8,7 @@ os.environ["NOEL_TESTING"] = "1"
 os.environ["NOEL_SECRET_KEY"] = "cle-de-test"
 os.environ["NOEL_DATABASE_URL"] = "sqlite://"
 os.environ["NOEL_MEDIA_DIR"] = tempfile.mkdtemp(prefix="noel-media-")
+os.environ["NOEL_PRIVATE_MEDIA_DIR"] = tempfile.mkdtemp(prefix="noel-prive-")
 
 import pytest  # noqa: E402
 from fastapi.testclient import TestClient  # noqa: E402

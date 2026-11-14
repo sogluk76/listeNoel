@@ -1,0 +1,39 @@
+{% from "macros.html" import avatar %}
+{# Fil d'une conversation, rechargé tant qu'elle est affichée. « v » évite de renvoyer un fil inchangé. #}
+<div id="msg-thread" hx-get="/messages/{{ conversation.id }}/fil?v={{ '' if error else version }}"
+     hx-trigger="every {{ settings.messages_poll_seconds }}s [document.visibilityState === 'visible']"
+     hx-target="this" hx-swap="outerHTML" hx-sync="this:drop">
+  {% if not messages %}
+  <p class="chat__empty muted">Pas encore de message. Dis bonjour !</p>
+  {% else %}
+  <ol class="chat">
+    {% for m in messages %}
+    {% set mine = m.author_id == user.id %}
+    <li class="chat__msg {% if mine %}chat__msg--mine{% endif %}" id="m{{ m.id }}">
+      {% if not mine %}{{ avatar(m.author, "sm") }}{% endif %}
+      <div class="chat__bubble">
+        <p class="chat__meta">{% if conversation.is_group and not mine %}<strong>{{ m.author.first_name }}</strong> {% endif %}<time>{{ m.created_at | dt }}</time>{% if m.updated_at %} <span>(modifié)</span>{% endif %}</p>
+        {% if m.image_path %}
+        <a class="chat__photo" href="/messages/photos/{{ m.id }}" target="_blank" rel="noopener"><img src="/messages/photos/{{ m.id }}" alt="Photo envoyée par {{ m.author.first_name }}" loading="lazy"></a>
+        {% endif %}
+        {% if m.content %}<p class="chat__text">{{ m.content }}</p>{% endif %}
+        {% if mine %}
+        <p class="chat__actions">
+          <a href="/messages/m/{{ m.id }}/modifier" hx-get="/messages/m/{{ m.id }}/modifier"
+             hx-target="#messages-panel" hx-swap="innerHTML" hx-sync="#messages-panel:replace">Modifier</a>
+          <button type="button" class="link-btn"
+                  hx-post="/messages/m/{{ m.id }}/supprimer" hx-target="#msg-thread" hx-swap="outerHTML"
+                  hx-sync="#msg-thread:replace" hx-confirm="Supprimer ce message ?">Supprimer</button>
+        </p>
+        {% endif %}
+      </div>
+    </li>
+    {% endfor %}
+  </ol>
+  {% if seen_by %}
+  <p class="msg-seen">Vu{% if conversation.is_group %} par {{ seen_by | map(attribute="first_name") | join(", ") }}{% endif %}</p>
+  {% endif %}
+  {% endif %}
+  {% if error %}<p class="alert alert--error" role="alert">{{ error }}</p>{% endif %}
+</div>
+{% if oob %}<p class="msg-head__status" id="msg-status" hx-swap-oob="true">{{ status }}</p>{% endif %}

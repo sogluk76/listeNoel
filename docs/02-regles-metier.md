@@ -99,7 +99,28 @@ Chaque règle a un identifiant `RG-xx` cité dans les user stories et dans les t
 - **RG-42** Dans un commentaire, `@` suivi du prénom d'un membre actif est une **mention**. Le prénom est reconnu sans tenir compte de la casse ni des accents, et doit être complet (`@Bobby` ne mentionne pas Bob). Le `@` ne doit pas suivre une lettre ou un chiffre (une adresse mail n'est pas une mention). Chaque membre mentionné reçoit **une** notification par message, sauf l'auteur du message.
 - **RG-43** Le **destinataire du cadeau n'est jamais notifié** et ne peut pas être mentionné dans le fil de son propre cadeau : son prénom y reste du texte simple. Le commentaire est accepté normalement. C'est une conséquence de RG-30 : une notification lui révélerait qu'on parle d'un de ses cadeaux.
 - **RG-44** Les notifications suivent le message : modifier un message ajoute ou retire les notifications selon ses mentions, supprimer un message (ou son cadeau) les supprime.
-- **RG-45** Une **cloche** dans l'en-tête des pages membre affiche le nombre de notifications non lues. La page « Notifications » les liste de la plus récente à la plus ancienne, et **les marque toutes comme lues à l'ouverture**. Ouvrir la page de commentaires d'un cadeau marque aussi comme lues les notifications de ce fil (et seulement celles-là) ; le rafraîchissement automatique du fil ne marque rien. Une notification n'est affichée et comptée que si le membre a encore le droit de voir le fil concerné (RG-30, RG-11, RG-40). Les notifications n'existent que sur le site : pas de mail, pas de notification sur le téléphone. L'admin n'en a pas.
+- **RG-45** Une **cloche** dans l'en-tête des pages membre affiche le nombre de notifications non lues : les mentions, plus **une par conversation privée qui contient du non-lu** (RG-50). La page « Notifications » liste d'abord ces conversations, puis les mentions de la plus récente à la plus ancienne, et **marque toutes les mentions comme lues à l'ouverture**. Ouvrir la page de commentaires d'un cadeau marque aussi comme lues les notifications de ce fil (et seulement celles-là) ; le rafraîchissement automatique du fil ne marque rien. Une notification n'est affichée et comptée que si le membre a encore le droit de voir le fil concerné (RG-30, RG-11, RG-40). Les notifications n'existent que sur le site : pas de mail, pas de notification sur le téléphone. L'admin n'en a pas.
+
+## Messages privés
+
+Les messages privés ne sont rattachés à aucun cadeau : la matrice RG-30 ne s'y applique pas, et on peut écrire ce qu'on veut à qui on veut.
+
+- **RG-46** Deux membres actifs peuvent s'écrire dans une **conversation à deux**, unique pour la paire. Un membre peut aussi créer un **groupe** nommé (RG-53). On ne s'écrit pas à soi-même. **L'admin n'a aucun accès** aux messages : ni bulle, ni pages, ni rien dans le panel.
+- **RG-47** Seuls les **participants** d'une conversation la lisent et y écrivent. La règle s'applique côté serveur : pour tout autre membre, la conversation, son fil, ses messages et ses photos répondent 404, y compris par une URL tapée à la main. Les photos ne sont jamais servies depuis le dossier public des images.
+- **RG-48** Un message contient un texte (1 à 1 000 caractères, emojis acceptés), **une** photo (JPEG, PNG ou WebP, 5 Mo maximum, comme RG-17), ou les deux. Sur ordinateur, Entrée envoie et Maj+Entrée va à la ligne ; sur téléphone, on envoie avec le bouton.
+- **RG-49** Chacun peut **modifier** le texte et **supprimer** ses propres messages. Un message modifié affiche « (modifié) ». Un message supprimé disparaît sans laisser de trace, avec sa photo.
+- **RG-50** Un message est **non lu** tant que son destinataire n'a pas affiché la conversation. La bulle « Messages » affiche le nombre de messages non lus ; la cloche compte **une notification par conversation** non lue, listée dans la page « Notifications » (« Bob t'a envoyé 3 messages »). Seul l'affichage de la conversation la marque comme lue : ouvrir la page « Notifications » ne suffit pas. Ses propres messages ne comptent jamais.
+- **RG-51** « **Vu** » s'affiche sous mon dernier message quand il est le dernier du fil et que l'autre l'a lu. Dans un groupe : « Vu par Bob, Chloé ».
+- **RG-52** L'en-tête d'une conversation à deux affiche la présence de l'autre : « **En ligne** » s'il a utilisé le site depuis moins de 2 minutes, sinon « En ligne il y a 7 min » (min, h, j, sem.), ou rien s'il ne s'est jamais connecté. Visible par tous les membres, sans réglage pour le masquer.
+- **RG-53** Groupes :
+  - le créateur choisit un nom (1 à 60 caractères) et au moins un autre membre actif ;
+  - tout participant peut **ajouter** un membre actif et **quitter** le groupe ;
+  - seul le **créateur** peut renommer le groupe et retirer quelqu'un ;
+  - un nouvel arrivant voit **tout l'historique**, sans que rien ne lui soit compté comme non lu ;
+  - un membre retiré ou parti perd tout accès ; ses messages restent ;
+  - si le créateur part, le plus ancien participant devient créateur ; un groupe sans participant est supprimé.
+- **RG-54** Compte **désactivé** : ses conversations restent lisibles, mais on ne peut plus lui écrire à deux (les groupes continuent). Compte **supprimé** (RG-41) : ses messages et ses conversations à deux disparaissent, il est retiré des groupes. La **clôture de l'année** ne touche pas aux messages.
+- **RG-55** La messagerie s'ouvre dans une **pop-up** en bas à droite de toutes les pages membre, depuis une bulle « Messages » (plein écran sur téléphone). Elle reste ouverte au même endroit quand on change de page. La conversation affichée se rafraîchit toutes les **5 secondes**, la bulle et la cloche toutes les **20 secondes**. Sans JavaScript, la bulle mène à la même messagerie en pleine page (`/messages`).
 
 ## Suppression d'un compte
 
@@ -108,6 +129,7 @@ Chaque règle a un identifiant `RG-xx` cité dans les user stories et dans les t
   - les cadeaux qu'il a créés pour d'autres (ses suggestions), avec leurs réservations et commentaires ;
   - ses réservations et ses commentaires sur les cadeaux des autres ;
   - ses notifications, et celles créées par ses commentaires ;
+  - ses messages privés, ses conversations à deux (en entier) et sa place dans les groupes (RG-54) ;
   - sa photo et les images des cadeaux supprimés ;
   - les cadeaux archivés qui le concernent.
 

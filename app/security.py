@@ -9,13 +9,14 @@ from sqlalchemy.orm import Session
 
 from app.db import get_db
 from app.errors import Forbidden, NotAuthenticated
-from app.models import User
+from app.models import User, utcnow
 
 _hasher = PasswordHasher()
 
 SESSION_USER_KEY = "uid"
 SESSION_CSRF_KEY = "csrf"
 SESSION_FLASH_KEY = "flash"
+PRESENCE_EVERY_SECONDS = 60
 
 
 # --- Mots de passe (RG-10) -------------------------------------------------
@@ -63,7 +64,17 @@ def current_member(request: Request, db: Session = Depends(get_db)) -> User:
         raise NotAuthenticated(admin=False)
     if not user.is_member:
         raise Forbidden()
+    touch_presence(db, user)
     return user
+
+
+def touch_presence(db: Session, user: User) -> None:
+    """Note l'activité du membre, au plus une fois par minute (« En ligne », RG-52)."""
+    now = utcnow()
+    last = user.last_seen_at
+    if last is None or (now - last).total_seconds() >= PRESENCE_EVERY_SECONDS:
+        user.last_seen_at = now
+        db.commit()
 
 
 def current_admin(request: Request, db: Session = Depends(get_db)) -> User:

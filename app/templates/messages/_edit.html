@@ -1,0 +1,24 @@
+{% from "macros.html" import icon, csrf %}
+{% set back = "/messages/" ~ message.conversation_id %}
+<div class="msg-view" data-view-url="{{ back }}">
+  <header class="msg-head">
+    <a class="icon-btn" href="{{ back }}" hx-get="{{ back }}" aria-label="Retour à la conversation">{{ icon("back") }}</a>
+    <h2 class="msg-head__title">Modifier le message</h2>
+    <button type="button" class="icon-btn msg-head__close" data-messages-close aria-label="Fermer les messages">{{ icon("close") }}</button>
+  </header>
+  <div class="msg-body">
+    <form class="stack" method="post" action="/messages/m/{{ message.id }}/modifier" hx-post="/messages/m/{{ message.id }}/modifier">
+      {{ csrf(csrf_token) }}
+      {% if error %}<p class="alert alert--error" role="alert">{{ error }}</p>{% endif %}
+      <div class="field">
+        <label for="msg-edit">Ton message</label>
+        <textarea id="msg-edit" name="content" rows="5" maxlength="1000" {% if not message.image_path %}required{% endif %}>{{ content }}</textarea>
+        {% if message.image_path %}<p class="field__help">La photo reste jointe au message.</p>{% endif %}
+      </div>
+      <div class="actions actions--end">
+        <a class="btn btn--ghost" href="{{ back }}" hx-get="{{ back }}">Annuler</a>
+        <button class="btn btn--primary" type="submit">Enregistrer</button>
+      </div>
+    </form>
+  </div>
+</div>

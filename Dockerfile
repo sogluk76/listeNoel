@@ -11,6 +11,7 @@ COPY . .
 # /data doit être un volume persistant : il contient la base et les images.
 ENV NOEL_DATABASE_URL=sqlite:////data/app.db \
     NOEL_MEDIA_DIR=/data/media \
+    NOEL_PRIVATE_MEDIA_DIR=/data/media_private \
     NOEL_SECURE_COOKIES=true
 VOLUME /data
 EXPOSE 8000

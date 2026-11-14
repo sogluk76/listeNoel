@@ -14,6 +14,8 @@ class Settings(BaseSettings):
     secret_key: str = ""
     database_url: str = f"sqlite:///{(BASE_DIR / 'data' / 'app.db').as_posix()}"
     media_dir: Path = BASE_DIR / "media"
+    # Photos des messages privés : jamais servies en statique, seulement aux participants.
+    private_media_dir: Path = BASE_DIR / "media_private"
     secure_cookies: bool = False
     testing: bool = False
 
@@ -22,6 +24,8 @@ class Settings(BaseSettings):
     lock_minutes: int = 15
     max_upload_bytes: int = 5 * 1024 * 1024
     comments_poll_seconds: int = 20
+    messages_poll_seconds: int = 5
+    messages_dock_poll_seconds: int = 20
     password_min_length: int = 8
 
     def resolved_secret_key(self) -> str:

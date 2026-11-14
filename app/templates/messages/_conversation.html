@@ -1,0 +1,41 @@
+{% from "macros.html" import avatar, icon, csrf %}
+<div class="msg-view" data-view-url="/messages/{{ conversation.id }}">
+  <header class="msg-head">
+    <a class="icon-btn" href="/messages" hx-get="/messages" aria-label="Retour aux conversations">{{ icon("back") }}</a>
+    {{ avatar(face, "sm") }}
+    <div class="msg-head__who">
+      <h2 class="msg-head__title">{{ title }}</h2>
+      <p class="msg-head__status" id="msg-status">{{ status }}</p>
+    </div>
+    {% if conversation.is_group %}
+    <a class="icon-btn" href="/messages/{{ conversation.id }}/reglages" hx-get="/messages/{{ conversation.id }}/reglages" title="Réglages du groupe" aria-label="Réglages du groupe">{{ icon("users") }}</a>
+    {% endif %}
+    <button type="button" class="icon-btn msg-head__close" data-messages-close aria-label="Fermer les messages">{{ icon("close") }}</button>
+  </header>
+  <div class="msg-body msg-scroll" aria-live="polite">
+    {% include "messages/_thread.html" %}
+  </div>
+  {% if can_write %}
+  <form class="chat-form msg-form" method="post" action="/messages/{{ conversation.id }}" enctype="multipart/form-data"
+        hx-post="/messages/{{ conversation.id }}" hx-encoding="multipart/form-data"
+        hx-target="#msg-thread" hx-swap="outerHTML" hx-sync="this:drop" data-msg-form>
+    {{ csrf(csrf_token) }}
+    {# Aperçu de la photo jointe, rempli par messages.js #}
+    <div class="msg-form__preview" data-msg-preview hidden>
+      <img alt="" data-msg-preview-img>
+      <span class="msg-form__preview-text"><strong>Photo jointe</strong><span data-msg-preview-name></span></span>
+      <button type="button" class="icon-btn" data-msg-photo-clear title="Retirer la photo" aria-label="Retirer la photo">{{ icon("close") }}</button>
+    </div>
+    <label class="icon-btn msg-form__photo" title="Joindre une photo">
+      {{ icon("image") }}
+      <span class="sr-only">Joindre une photo</span>
+      <input class="sr-only" type="file" name="photo" accept="image/jpeg,image/png,image/webp" data-msg-photo>
+    </label>
+    <label class="sr-only" for="msg-content">Ton message</label>
+    <textarea id="msg-content" name="content" rows="1" maxlength="1000" placeholder="Écrire un message…" data-msg-enter></textarea>
+    <button class="btn btn--primary" type="submit" aria-label="Envoyer">{{ icon("send") }}</button>
+  </form>
+  {% else %}
+  <p class="msg-note muted">Ce compte est désactivé : tu ne peux plus lui écrire.</p>
+  {% endif %}
+</div>
