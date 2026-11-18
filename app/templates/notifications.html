@@ -5,7 +5,7 @@
 <div class="page-head">
   <div>
     <h1>Notifications</h1>
-    <p class="muted">Tes messages privés non lus et les commentaires où quelqu'un a écrit @{{ user.first_name }}.</p>
+    <p class="muted">Tes messages privés non lus, les nouveaux cadeaux et les commentaires où quelqu'un a écrit @{{ user.first_name }}.</p>
   </div>
 </div>
 
@@ -13,7 +13,7 @@
 <div class="empty">
   {{ icon("bell") }}
   <p>Aucune notification pour l'instant.</p>
-  <p>Quand quelqu'un t'écrira, ou écrira @{{ user.first_name }} dans un commentaire, tu le verras ici.</p>
+  <p>Quand quelqu'un t'écrira, ajoutera un cadeau, ou écrira @{{ user.first_name }} dans un commentaire, tu le verras ici.</p>
 </div>
 {% else %}
 <ul class="list">
@@ -32,6 +32,21 @@
   </li>
   {% endfor %}
   {% for n, unread in items %}
+  {% if n.is_new_gift %}
+  {% set g = n.gift %}
+  <li>
+    <a class="notif {% if unread %}notif--unread{% endif %}" href="/cadeaux/{{ g.id }}">
+      {{ avatar(g.author, "md") }}
+      <span class="notif__body">
+        <span class="notif__title">{% if g.is_suggestion %}<strong>{{ g.author.first_name }}</strong> a suggéré « {{ g.name }} » pour {{ g.recipient.first_name }}{% else %}<strong>{{ g.author.first_name }}</strong> a ajouté « {{ g.name }} » à sa liste{% endif %}</span>
+        {% if g.price is not none %}<span class="notif__text">{{ g.price | price }}</span>{% endif %}
+        <time class="notif__time">{{ n.created_at | dt }}</time>
+      </span>
+      {% if unread %}<span class="pill pill--bought">Nouveau</span>{% endif %}
+      {{ icon("chevron") }}
+    </a>
+  </li>
+  {% else %}
   {% set c = n.comment %}
   <li>
     <a class="notif {% if unread %}notif--unread{% endif %}" href="/cadeaux/{{ c.gift_id }}/commentaires#c{{ c.id }}">
@@ -45,6 +60,7 @@
       {{ icon("chevron") }}
     </a>
   </li>
+  {% endif %}
   {% endfor %}
 </ul>
 {% endif %}

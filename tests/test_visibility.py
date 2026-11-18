@@ -217,3 +217,45 @@ def test_us28_notification_masquee_si_le_cadeau_n_est_plus_visible(
     db.commit()
     assert not _bell_count(client.get("/").text)
     assert "ARCHIVE-TEST" not in client.get("/notifications").text
+
+
+def test_rg57_suggestion_ne_notifie_jamais_le_destinataire(login, db, alice, bob, chloe):
+    """La surprise d'abord : une suggestion pour Alice ne lui crée aucune notification."""
+    response = login(bob).post(
+        "/cadeaux", data={"name": "SECRET-SURPRISE", "suggest": "1", "recipient_id": alice.id}
+    )
+    assert response.status_code == 303
+    db.expire_all()
+    assert alice.id not in db.scalars(select(Notification.user_id)).all()
+    alice_client = login(alice)
+    for path in ("/", "/notifications", f"/personnes/{alice.id}"):
+        html = alice_client.get(path).text
+        assert not _bell_count(html), path
+        assert "SECRET" not in html, path
+
+
+def test_rg57_notification_cadeau_forgee_invisible_pour_le_destinataire(
+    login, db, alice, bob, make_gift
+):
+    """Défense en profondeur : même une ligne forgée en base ne révèle pas la suggestion."""
+    gift = make_gift(bob, alice, "SECRET-FORGE")
+    gift.notifications.append(Notification(user_id=alice.id))
+    db.commit()
+    client = login(alice)
+    html = client.get("/notifications").text
+    assert "SECRET-FORGE" not in html and "Aucune notification" in html
+    assert not _bell_count(client.get("/").text)
+    db.expire_all()
+    assert db.scalar(select(Notification)).read_at is None
+
+
+def test_rg57_notification_cadeau_masquee_si_archive(login, db, alice, bob, make_gift):
+    gift = make_gift(alice, alice, "ARCHIVE-TEST")
+    gift.notifications.append(Notification(user_id=bob.id))
+    db.commit()
+    client = login(bob)
+    assert _bell_count(client.get("/").text)
+    gift.archived_year = 2026  # RG-40
+    db.commit()
+    assert not _bell_count(client.get("/").text)
+    assert "ARCHIVE-TEST" not in client.get("/notifications").text

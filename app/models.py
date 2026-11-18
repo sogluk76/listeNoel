@@ -103,6 +103,10 @@ class Gift(Base):
     comments: Mapped[list["Comment"]] = relationship(
         back_populates="gift", cascade="all, delete-orphan", order_by="Comment.created_at"
     )
+    # Notifications « nouveau cadeau » (RG-57), supprimées avec le cadeau.
+    notifications: Mapped[list["Notification"]] = relationship(
+        back_populates="gift", cascade="all, delete-orphan"
+    )
 
     @property
     def is_suggestion(self) -> bool:
@@ -166,24 +170,38 @@ class Comment(Base):
 
 
 class Notification(Base):
-    """Mention « @Prénom » dans un commentaire, à signaler au membre mentionné (RG-42)."""
+    """Notification d'un membre : soit une mention « @Prénom » dans un commentaire (RG-42),
+    soit un nouveau cadeau qu'il peut voir (RG-57). Exactement l'un des deux est renseigné."""
 
     __tablename__ = "notifications"
     __table_args__ = (
         UniqueConstraint("user_id", "comment_id", name="uq_notifications_user_comment"),
+        UniqueConstraint("user_id", "gift_id", name="uq_notifications_user_gift"),
+        CheckConstraint(
+            "(comment_id IS NULL) <> (gift_id IS NULL)", name="ck_notifications_target"
+        ),
         Index("ix_notifications_user", "user_id", "read_at"),
     )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False)
-    comment_id: Mapped[int] = mapped_column(
-        ForeignKey("comments.id", ondelete="CASCADE"), nullable=False
-    )
+    comment_id: Mapped[int | None] = mapped_column(ForeignKey("comments.id", ondelete="CASCADE"))
+    gift_id: Mapped[int | None] = mapped_column(ForeignKey("gifts.id", ondelete="CASCADE"))
     created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=utcnow)
     read_at: Mapped[datetime | None] = mapped_column(DateTime)
 
     user: Mapped[User] = relationship()
-    comment: Mapped[Comment] = relationship(back_populates="notifications")
+    comment: Mapped[Comment | None] = relationship(back_populates="notifications")
+    gift: Mapped[Gift | None] = relationship(back_populates="notifications")
+
+    @property
+    def is_new_gift(self) -> bool:
+        return self.gift_id is not None
+
+    @property
+    def target_gift(self) -> Gift:
+        """Le cadeau concerné, qu'il s'agisse d'une mention ou d'un nouveau cadeau."""
+        return self.gift if self.gift is not None else self.comment.gift
 
 
 class Conversation(Base):

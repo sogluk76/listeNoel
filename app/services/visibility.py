@@ -157,10 +157,11 @@ def get_gift_with_secrets(db: Session, viewer: User, gift_id: int) -> Gift:
 
 
 def my_notifications(db: Session, viewer: User) -> list[Notification]:
-    """Notifications du viewer, de la plus récente à la plus ancienne (RG-45).
+    """Notifications du viewer, de la plus récente à la plus ancienne (RG-45, RG-57).
 
-    Une notification renvoie vers un commentaire : elle n'est renvoyée que si le viewer
-    a le droit de voir le fil de ce cadeau. Le destinataire n'en reçoit donc jamais,
+    Une mention n'est renvoyée que si le viewer a le droit de voir le fil du cadeau.
+    Un nouveau cadeau ne l'est que si le viewer le voit, n'en est ni l'auteur ni le
+    destinataire, et qu'il n'a pas été retiré. Le destinataire n'en reçoit donc jamais,
     même si une ligne existait en base par erreur.
     """
     stmt = (
@@ -170,9 +171,12 @@ def my_notifications(db: Session, viewer: User) -> list[Notification]:
     )
     result = []
     for notification in db.scalars(stmt).all():
-        gift = notification.comment.gift
-        if is_visible(viewer, gift) and can_see_secrets(viewer, gift):
-            result.append(notification)
+        gift = notification.target_gift
+        if not (is_visible(viewer, gift) and can_see_secrets(viewer, gift)):
+            continue
+        if notification.is_new_gift and (gift.is_removed or gift.author_id == viewer.id):
+            continue
+        result.append(notification)
     return result
 
 

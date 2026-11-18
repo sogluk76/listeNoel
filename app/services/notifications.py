@@ -1,4 +1,5 @@
-"""Mentions « @Prénom » dans les commentaires et notifications associées (RG-42 à RG-45).
+"""Mentions « @Prénom » dans les commentaires et notifications associées (RG-42 à RG-45),
+et notifications de nouveau cadeau (RG-57).
 
 La lecture des notifications d'un membre passe par visibility.my_notifications.
 """
@@ -93,6 +94,17 @@ def sync(db: Session, comment: Comment, gift: Gift) -> None:
             comment.notifications.remove(notification)
     for user_id in sorted(wanted):
         comment.notifications.append(Notification(user_id=user_id))
+
+
+def notify_new_gift(db: Session, gift: Gift) -> None:
+    """Prévient les membres qui peuvent voir un cadeau qui vient d'être créé (RG-57).
+
+    À appeler avant le commit. L'auteur n'est pas notifié, et le destinataire d'une
+    suggestion non plus : il ne doit jamais apprendre qu'on lui en a fait une (RG-30).
+    """
+    for member in users_service.active_members(db):
+        if member.id not in (gift.author_id, gift.recipient_id):
+            gift.notifications.append(Notification(user_id=member.id))
 
 
 def mark_read(db: Session, notifications: list[Notification]) -> None:

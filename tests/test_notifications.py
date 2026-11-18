@@ -244,3 +244,90 @@ def test_us28_le_rafraichissement_du_fil_ne_marque_pas_comme_lu(login, db, alice
     client.get(f"/cadeaux/{gift.id}/commentaires/fil")  # fragment rechargé toutes les 20 s
     client.get(f"/cadeaux/{gift.id}")  # page de détail du cadeau
     assert _bell(client) == "1"
+
+
+# --- Nouveau cadeau (RG-57) ----------------------------------------------------
+
+
+def _create(client, name: str, recipient=None):
+    data = {"name": name}
+    if recipient is not None:
+        data.update(suggest="1", recipient_id=recipient.id)
+    response = client.post("/cadeaux", data=data)
+    assert response.status_code == 303, response.text
+
+
+def _gift_notified(db) -> list[int]:
+    db.expire_all()
+    return sorted(
+        db.scalars(select(Notification.user_id).where(Notification.gift_id.is_not(None))).all()
+    )
+
+
+def test_rg57_cadeau_sur_sa_liste_notifie_les_autres_membres(login, db, alice, bob, chloe):
+    _create(login(alice), "Puzzle 1000 pièces")
+    assert _gift_notified(db) == sorted([bob.id, chloe.id])  # pas l'auteur
+    html = login(bob).get("/notifications").text
+    assert "<strong>Alice</strong> a ajouté « Puzzle 1000 pièces » à sa liste" in html
+    assert _bell(login(chloe)) == "1"
+    assert _bell(login(alice)) is None
+
+
+def test_rg57_suggestion_notifie_tout_le_monde_sauf_auteur_et_destinataire(
+    login, db, alice, bob, chloe
+):
+    _create(login(alice), "Casque audio", recipient=chloe)
+    assert _gift_notified(db) == [bob.id]
+    assert "<strong>Alice</strong> a suggéré « Casque audio » pour Chloé" in (
+        login(bob).get("/notifications").text
+    )
+
+
+def test_rg57_compte_desactive_et_admin_non_notifies(login, db, alice, bob, chloe, admin):
+    chloe.is_active = False
+    db.commit()
+    _create(login(alice), "Vélo")
+    assert _gift_notified(db) == [bob.id]
+
+
+def test_rg57_la_ligne_mene_au_cadeau_et_l_ouvrir_la_marque_lue(login, db, alice, bob):
+    _create(login(alice), "Vélo")
+    _create(login(alice), "Livre")
+    db.expire_all()
+    velo = db.scalar(select(Notification).where(Notification.gift_id.is_not(None))).gift
+    client = login(bob)
+    assert _bell(client) == "2"
+    client.get(f"/cadeaux/{velo.id}")  # la fiche marque seulement ce cadeau comme lu
+    assert _bell(client) == "1"
+    html = client.get("/notifications").text
+    assert f'href="/cadeaux/{velo.id}"' in html
+    assert _bell(client) is None  # la page marque tout comme lu
+
+
+def test_rg57_modifier_le_cadeau_ne_notifie_pas(login, db, alice, bob):
+    client = login(alice)
+    _create(client, "Vélo")
+    db.expire_all()
+    gift = db.scalar(select(Notification)).gift
+    client.post(f"/cadeaux/{gift.id}/modifier", data={"name": "Vélo rouge"})
+    assert _gift_notified(db) == [bob.id]
+
+
+def test_rg57_notification_supprimee_ou_masquee_avec_le_cadeau(login, db, alice, bob, chloe):
+    client = login(alice)
+    _create(client, "Vélo")
+    _create(client, "Livre")
+    db.expire_all()
+    velo, livre = sorted(
+        (n.gift for n in db.scalars(select(Notification).where(Notification.user_id == bob.id))),
+        key=lambda g: g.name,
+    )[::-1]
+    # Sans activité : suppression définitive, la notification part avec le cadeau.
+    client.post(f"/cadeaux/{velo.id}/supprimer")
+    assert _gift_notified(db) == sorted([bob.id, chloe.id])
+    # Avec activité : retrait doux, la notification n'est plus affichée ni comptée.
+    login(bob).post(f"/cadeaux/{livre.id}/commentaires", data={"content": "je regarde"})
+    client.post(f"/cadeaux/{livre.id}/supprimer")
+    bob_client = login(bob)
+    assert _bell(bob_client) is None
+    assert "Livre" not in bob_client.get("/notifications").text

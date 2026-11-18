@@ -10,6 +10,7 @@ from app.models import User
 from app.security import current_member, flash
 from app.services import gifts as gifts_service
 from app.services import images, reservations, visibility
+from app.services import notifications as notifications_service
 from app.services import users as users_service
 from app.web import fragment, is_htmx, redirect, render
 
@@ -135,6 +136,10 @@ def gift_detail(
     db: Session = Depends(get_db),
 ):
     gift = visibility.get_gift(db, user, gift_id)
+    # Ouvrir la fiche vaut lecture de la notification « nouveau cadeau » (RG-57).
+    notifications_service.mark_read(
+        db, [n for n in visibility.my_notifications(db, user) if n.gift_id == gift.id]
+    )
     return render(request, "gift_detail.html", {"view": visibility.build_view(user, gift)}, user)
 
 

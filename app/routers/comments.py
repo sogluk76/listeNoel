@@ -63,7 +63,12 @@ def comments_page(
     gift = visibility.get_gift_with_secrets(db, user, gift_id)
     # Ouvrir le fil vaut lecture des mentions qu'il contient (RG-45).
     notifications_service.mark_read(
-        db, [n for n in visibility.my_notifications(db, user) if n.comment.gift_id == gift.id]
+        db,
+        [
+            n
+            for n in visibility.my_notifications(db, user)
+            if n.comment is not None and n.comment.gift_id == gift.id
+        ],
     )
     return render(request, "comments.html", _context(db, user, gift), user=user)
 

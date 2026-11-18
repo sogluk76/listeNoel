@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 
 from app.errors import Forbidden
 from app.models import Gift, User, utcnow
-from app.services import images
+from app.services import images, notifications
 from app.services import users as users_service
 
 NAME_MAX = 150
@@ -102,6 +102,7 @@ def create(
         recipient_id=recipient.id,
     )
     db.add(gift)
+    notifications.notify_new_gift(db, gift)
     db.commit()
     return gift
 
