@@ -10,7 +10,7 @@
 
 ### Analyse fonctionnelle
 
-C'est l'écran d'accueil après connexion. Il affiche tous les membres actifs, moi compris, par ordre alphabétique (RG-12), chacun avec sa photo ou son placeholder, son prénom et, entre parenthèses, le nombre de cadeaux **que je peux voir** sur sa liste (RG-13). Sur ma propre ligne, le compteur n'inclut donc pas les suggestions qu'on m'a faites. Cliquer sur une personne ouvre sa liste de cadeaux (US-13).
+C'est l'écran d'accueil de la liste de Noël (`/noel`), ouvert depuis le menu (US-38). Il affiche tous les membres actifs, moi compris, par ordre alphabétique (RG-12), chacun avec sa photo ou son placeholder, son prénom et, entre parenthèses, le nombre de cadeaux **que je peux voir** sur sa liste (RG-13). Sur ma propre ligne, le compteur n'inclut donc pas les suggestions qu'on m'a faites. Cliquer sur une personne ouvre sa liste de cadeaux (US-13).
 
 L'écran propose aussi un bouton « + » qui ouvre le formulaire d'ajout de cadeau (US-11) et un accès au profil.
 

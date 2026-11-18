@@ -1,9 +1,9 @@
 {% extends "base.html" %}
 {% from "macros.html" import icon, csrf, field_error %}
-{% block title %}{{ "Modifier le cadeau" if gift else "Ajouter un cadeau" }} · Liste de Noël{% endblock %}
+{% block title %}{{ "Modifier le cadeau" if gift else "Ajouter un cadeau" }} · La Famille{% endblock %}
 {% block content %}
 {% set editing = gift is not none %}
-<a class="back-link" href="{{ '/cadeaux/' ~ gift.id if editing else '/' }}">{{ icon("back") }} Annuler</a>
+<a class="back-link" href="{{ '/cadeaux/' ~ gift.id if editing else '/noel' }}">{{ icon("back") }} Annuler</a>
 
 <form class="card stack gift-form" method="post" enctype="multipart/form-data"
       action="{{ '/cadeaux/' ~ gift.id ~ '/modifier' if editing else '/cadeaux' }}" novalidate>
@@ -74,7 +74,7 @@
   </div>
 
   <div class="actions actions--end">
-    <a class="btn btn--ghost" href="{{ '/cadeaux/' ~ gift.id if editing else '/' }}">Annuler</a>
+    <a class="btn btn--ghost" href="{{ '/cadeaux/' ~ gift.id if editing else '/noel' }}">Annuler</a>
     <button class="btn btn--primary" type="submit">Enregistrer</button>
   </div>
 </form>

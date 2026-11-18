@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% from "macros.html" import icon, csrf %}
+{% block title %}{{ shopping_list.name }} · La Famille{% endblock %}
+{% block content %}
+<a class="back-link" href="/courses">{{ icon("back") }} Listes de courses</a>
+<div class="page-head">
+  <div>
+    <h1>{{ shopping_list.name }}</h1>
+    <p class="muted">Créée par {{ shopping_list.creator.first_name if shopping_list.creator else "un ancien membre" }}</p>
+  </div>
+  <div class="actions">
+    <details class="confirm confirm--right" {% if rename_error %}open{% endif %}>
+      <summary class="btn btn--ghost">{{ icon("edit") }} Renommer</summary>
+      <form method="post" action="/courses/{{ shopping_list.id }}/renommer" class="confirm__box shop-rename" novalidate>
+        {{ csrf(csrf_token) }}
+        <div class="field {% if rename_error %}field--error{% endif %}">
+          <label for="rename">Nom de la liste</label>
+          <input id="rename" name="name" type="text" maxlength="60" required value="{{ shopping_list.name }}"
+                 {% if rename_error %}aria-describedby="rename-error" aria-invalid="true"{% endif %}>
+          {% if rename_error %}<p class="field__error" id="rename-error">{{ rename_error }}</p>{% endif %}
+        </div>
+        <button class="btn btn--primary" type="submit">Enregistrer</button>
+      </form>
+    </details>
+    <details class="confirm confirm--right">
+      <summary class="btn btn--ghost btn--danger">{{ icon("trash") }} Supprimer</summary>
+      <form method="post" action="/courses/{{ shopping_list.id }}/supprimer" class="confirm__box">
+        {{ csrf(csrf_token) }}
+        <p>Supprimer cette liste et tous ses articles, pour toute la famille ?</p>
+        <button class="btn btn--danger-solid" type="submit">Oui, supprimer</button>
+      </form>
+    </details>
+  </div>
+</div>
+
+{% include "shopping/_items.html" %}
+{% endblock %}

@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% from "macros.html" import icon, csrf %}
+{% block title %}Listes de courses · La Famille{% endblock %}
+{% block content %}
+<a class="back-link" href="/">{{ icon("back") }} Menu</a>
+<div class="page-head">
+  <div>
+    <h1>Listes de courses</h1>
+    <p class="muted">Partagées avec toute la famille : chacun peut ajouter et cocher.</p>
+  </div>
+</div>
+
+<form class="card shop-new" method="post" action="/courses" novalidate>
+  {{ csrf(csrf_token) }}
+  <div class="field {% if error %}field--error{% endif %}">
+    <label for="list-name">Nouvelle liste</label>
+    <div class="shop-new__row">
+      <input id="list-name" name="name" type="text" maxlength="60" required
+             placeholder="Repas du 24, courses de la semaine…" value="{{ name }}"
+             {% if error %}aria-describedby="name-error" aria-invalid="true"{% endif %}>
+      <button class="btn btn--primary" type="submit">{{ icon("plus") }} Créer</button>
+    </div>
+    {% if error %}<p class="field__error" id="name-error">{{ error }}</p>{% endif %}
+  </div>
+</form>
+
+{% if lists %}
+<ul class="list shop-lists">
+  {% for shopping_list, remaining in lists %}
+  <li>
+    <a class="person-row" href="/courses/{{ shopping_list.id }}">
+      <span class="app-tile__icon shop-lists__icon">{{ icon("cart") }}</span>
+      <span class="person-row__name">{{ shopping_list.name }}</span>
+      <span class="count" title="Articles à acheter">{{ remaining }}</span>
+      {{ icon("chevron") }}
+    </a>
+  </li>
+  {% endfor %}
+</ul>
+{% else %}
+<div class="empty shop-lists">
+  {{ icon("cart") }}
+  <p>Aucune liste pour l'instant.</p>
+  <p>Crée la première au-dessus : toute la famille la verra.</p>
+</div>
+{% endif %}
+{% endblock %}

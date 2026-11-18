@@ -1,0 +1,84 @@
+{% from "macros.html" import icon, csrf %}
+{% set base = "/courses/" ~ shopping_list.id %}
+{% set hx = 'hx-target="#shop" hx-swap="outerHTML"' %}
+<section class="shop" id="shop" aria-label="Articles">
+  <form class="card shop-add" method="post" action="{{ base }}/articles" hx-post="{{ base }}/articles" {{ hx | safe }} novalidate>
+    {{ csrf(csrf_token) }}
+    <div class="shop-add__row">
+      <div class="field shop-add__name {% if error %}field--error{% endif %}">
+        <label for="item-name">Article</label>
+        <input id="item-name" name="name" type="text" maxlength="100" required autocomplete="off"
+               placeholder="Lait, pommes…" value="{{ values.name or '' }}"
+               {% if error %}aria-describedby="item-error" aria-invalid="true" autofocus{% endif %}>
+      </div>
+      <div class="field shop-add__qty">
+        <label for="item-qty">Quantité</label>
+        <input id="item-qty" name="quantity" type="text" maxlength="30" autocomplete="off"
+               placeholder="2 kg" value="{{ values.quantity or '' }}">
+      </div>
+      <button class="btn btn--primary shop-add__btn" type="submit" aria-label="Ajouter l'article">{{ icon("plus") }}<span>Ajouter</span></button>
+    </div>
+    {% if error %}<p class="field__error" id="item-error">{{ error }}</p>{% endif %}
+  </form>
+
+  {% if not pending and not done %}
+  <div class="empty">
+    {{ icon("cart") }}
+    <p>La liste est vide.</p>
+    <p>Ajoute le premier article au-dessus.</p>
+  </div>
+  {% endif %}
+
+  {% if pending %}
+  <ul class="shop-items">
+    {% for item in pending %}
+    <li class="shop-item">
+      <form method="post" action="{{ base }}/articles/{{ item.id }}/cocher" hx-post="{{ base }}/articles/{{ item.id }}/cocher" {{ hx | safe }}>
+        {{ csrf(csrf_token) }}
+        <button class="shop-item__check" type="submit" aria-pressed="false" aria-label="Cocher « {{ item.name }} »">{{ icon("check") }}</button>
+      </form>
+      <span class="shop-item__body">
+        <span class="shop-item__name">{{ item.name }}{% if item.quantity %} <span class="shop-item__qty">{{ item.quantity }}</span>{% endif %}</span>
+        <span class="shop-item__meta">Ajouté par {{ item.author.first_name if item.author else "un ancien membre" }}</span>
+      </span>
+      <form method="post" action="{{ base }}/articles/{{ item.id }}/supprimer" hx-post="{{ base }}/articles/{{ item.id }}/supprimer" {{ hx | safe }}>
+        {{ csrf(csrf_token) }}
+        <button class="icon-btn shop-item__delete" type="submit" aria-label="Supprimer « {{ item.name }} »">{{ icon("trash") }}</button>
+      </form>
+    </li>
+    {% endfor %}
+  </ul>
+  {% elif done %}
+  <p class="shop-done-all">{{ icon("check") }} Tout est dans le panier !</p>
+  {% endif %}
+
+  {% if done %}
+  <div class="shop-basket">
+    <div class="shop-basket__head">
+      <h2>Dans le panier <span class="count">{{ done | length }}</span></h2>
+      <form method="post" action="{{ base }}/vider" hx-post="{{ base }}/vider" {{ hx | safe }}>
+        {{ csrf(csrf_token) }}
+        <button class="link-btn link-btn--danger" type="submit">Retirer les articles cochés</button>
+      </form>
+    </div>
+    <ul class="shop-items">
+      {% for item in done %}
+      <li class="shop-item shop-item--done">
+        <form method="post" action="{{ base }}/articles/{{ item.id }}/cocher" hx-post="{{ base }}/articles/{{ item.id }}/cocher" {{ hx | safe }}>
+          {{ csrf(csrf_token) }}
+          <button class="shop-item__check" type="submit" aria-pressed="true" aria-label="Décocher « {{ item.name }} »">{{ icon("check") }}</button>
+        </form>
+        <span class="shop-item__body">
+          <span class="shop-item__name">{{ item.name }}{% if item.quantity %} <span class="shop-item__qty">{{ item.quantity }}</span>{% endif %}</span>
+          <span class="shop-item__meta">Pris par {{ item.checked_by.first_name if item.checked_by else "un ancien membre" }}</span>
+        </span>
+        <form method="post" action="{{ base }}/articles/{{ item.id }}/supprimer" hx-post="{{ base }}/articles/{{ item.id }}/supprimer" {{ hx | safe }}>
+          {{ csrf(csrf_token) }}
+          <button class="icon-btn shop-item__delete" type="submit" aria-label="Supprimer « {{ item.name }} »">{{ icon("trash") }}</button>
+        </form>
+      </li>
+      {% endfor %}
+    </ul>
+  </div>
+  {% endif %}
+</section>

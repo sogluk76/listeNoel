@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% from "macros.html" import icon %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>Bonjour {{ user.first_name }}</h1>
+    <p class="muted">Que veux-tu ouvrir ?</p>
+  </div>
+</div>
+
+<ul class="app-grid">
+  {% for app in apps %}
+  <li>
+    <a class="app-tile" href="{{ app.href }}">
+      <span class="app-tile__icon">{{ icon(app.icon) }}</span>
+      <span class="app-tile__body">
+        <span class="app-tile__name">{{ app.name }}</span>
+        <span class="app-tile__text">{{ app.text }}</span>
+      </span>
+      {{ icon("chevron") }}
+    </a>
+  </li>
+  {% endfor %}
+</ul>
+{% endblock %}

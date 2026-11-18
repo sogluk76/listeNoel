@@ -67,6 +67,15 @@ Les lots 0 à 5 ont été livrés en une seule fois le 10/11/2026 (cf. journal).
 |---|---|---|
 | ✅ | US-27 | Mentionner quelqu'un dans un commentaire |
 | ✅ | US-28 | Voir mes notifications (cloche et page) |
+| ✅ | US-37 | Être prévenu d'un nouveau cadeau |
+
+## Lot 9 — Menu des applications et listes de courses
+| | US | Titre |
+|---|---|---|
+| ✅ | US-38 | Choisir une application dans le menu |
+| ✅ | US-39 | Créer et gérer des listes de courses |
+| ✅ | US-40 | Ajouter des articles |
+| ✅ | US-41 | Cocher et retirer des articles |
 
 ## Lot 8 — Messages privés
 | | US | Titre |

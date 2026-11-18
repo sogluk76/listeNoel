@@ -1,12 +1,12 @@
 {% extends "base.html" %}
 {% from "macros.html" import csrf, icon %}
-{% block title %}Connexion · Liste de Noël{% endblock %}
+{% block title %}Connexion · La Famille{% endblock %}
 {% block header %}{% endblock %}
 {% block page_class %}page--center{% endblock %}
 {% block content %}
 <section class="card card--narrow login">
   <p class="login__brand">{{ icon("gift") }}</p>
-  <h1 class="text-center">Liste de Noël</h1>
+  <h1 class="text-center">La Famille</h1>
 
   {% if not members %}
   <p class="muted text-center">Aucun compte n'existe encore. L'administrateur doit d'abord créer les comptes de la famille.</p>

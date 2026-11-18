@@ -11,7 +11,17 @@ from starlette.middleware.sessions import SessionMiddleware
 from app.config import settings
 from app.db import run_migrations
 from app.errors import Forbidden, NotAuthenticated, NotFound
-from app.routers import admin, auth, comments, gifts, messages, notifications, people, profile
+from app.routers import (
+    admin,
+    auth,
+    comments,
+    gifts,
+    messages,
+    notifications,
+    people,
+    profile,
+    shopping,
+)
 from app.security import csrf_protect
 from app.web import htmx_redirect, redirect, render
 
@@ -43,7 +53,7 @@ def _error_page(request: Request, status_code: int):
 
 def create_app() -> FastAPI:
     app = FastAPI(
-        title="Liste de Noël",
+        title="La Famille",
         lifespan=lifespan,
         dependencies=[Depends(csrf_protect)],
         docs_url=None,
@@ -64,7 +74,17 @@ def create_app() -> FastAPI:
     app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
     app.mount("/media", StaticFiles(directory=settings.media_dir), name="media")
 
-    for module in (auth, people, gifts, comments, notifications, messages, profile, admin):
+    for module in (
+        auth,
+        people,
+        gifts,
+        comments,
+        notifications,
+        messages,
+        shopping,
+        profile,
+        admin,
+    ):
         app.include_router(module.router)
 
     @app.exception_handler(NotAuthenticated)

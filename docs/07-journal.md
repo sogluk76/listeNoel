@@ -75,3 +75,23 @@ Une entrée par incrément livré (tests verts). Format :
 - Tests : 5 ajoutés, total 158 verts. Migration vérifiée sur une base vide (aller-retour). Contrastes des quatre nouvelles palettes calculés (19 couples texte / fond chacune, tous ≥ 4,5:1). Vérifié dans Chrome sans interface : 13 vérifications (application au clic pour chaque thème, thème clair forcé sur appareil sombre, pop-up des messages, téléphone 375 px), hors suite pytest. Ce passage a révélé un défaut corrigé avant livraison : la page ne se rechargeait pas après le clic.
 - Décisions validées : demande de Lukas, qui a laissé le choix des thèmes libre (nouvelle règle RG-56).
 - À savoir : dans le thème Sombre d'origine, trois couples de couleurs sont sous 4,5:1 sur le fond `--c-surface-2` (vert et rouge d'accent, 3,9 à 4,4). Ils existaient avant ce changement et n'ont pas été modifiés.
+
+## 2026-11-18 — US-37 — notification d'un nouveau cadeau
+- Fait : à la création d'un cadeau, chaque membre actif qui peut le voir est notifié, sauf l'auteur et, pour une suggestion, son destinataire. Les notifications sont listées avec les mentions, mènent à la fiche du cadeau et sont marquées lues à son ouverture. La table `notifications` reçoit `gift_id` (migration `0005`), `comment_id` devient facultatif.
+- Fichiers : `app/models.py`, `migrations/versions/0005_notifications_cadeaux.py`, `app/services/notifications.py`, `app/services/gifts.py`, `app/services/visibility.py`, `app/routers/gifts.py`, `app/routers/comments.py`, `app/templates/notifications.html`, `tests/test_notifications.py`, `tests/test_visibility.py`.
+- Tests : 9 ajoutés, total 167 verts. Migration vérifiée sur une base vide (aller-retour `downgrade` / `upgrade`).
+- Décisions validées par Lukas : tous les membres sauf l'auteur (et le destinataire d'une suggestion), une notification par cadeau, lue via la page ou la fiche, table existante étendue. Nouvelle règle RG-57.
+
+## 2026-11-18 — US-38 — menu des applications
+- Fait : le site devient « La Famille ». Après la connexion, on arrive sur un menu (`/`) avec une tuile par application ; la liste des personnes passe sur `/noel`. Le logo ramène au menu, l'en-tête (cloche, messages, profil, thème) est commun.
+- Fichiers : `app/routers/people.py`, templates `menu.html` (nouveau), `people.html`, `base.html`, `login.html`, `gift_list.html`, `gift_form.html`, `profile.html`, `macros.html` et titres de toutes les pages, CSS `components.css` (composant `app-tile`), `app/main.py`, `app/cli.py`, `tests/test_menu.py` (nouveau), `tests/test_admin.py`, `tests/test_auth.py`, `tests/test_profile.py`, `tests/test_visibility.py`.
+- Tests : 5 ajoutés, total 172 verts.
+- Décisions validées par Lukas : menu sur `/`, Noël sur `/noel`, en-tête commun, nom « La Famille ». Nouvelle règle RG-58.
+
+## 2026-11-18 — US-39 à US-41 — listes de courses
+- Fait : listes de courses nommées et partagées par tous les membres, articles avec quantité facultative, cocher / décocher (« Pris par … »), suppression d'un article, « Retirer les articles cochés ». Actions en HTMX sans rechargement, avec repli sans JavaScript. Les listes d'un compte supprimé restent.
+- Fichiers : `app/models.py`, `migrations/versions/0006_listes_de_courses.py`, `app/services/shopping.py` (nouveau), `app/routers/shopping.py` (nouveau), `app/services/admin.py`, `app/main.py`, `app/routers/people.py`, templates `shopping/` (nouveau), `macros.html` (icônes panier, coche, corbeille), CSS `components.css`, `tests/test_shopping.py` (nouveau).
+- Tests : 25 ajoutés, total 197 verts. Migration vérifiée sur une base vide (aller-retour, `alembic check`).
+- Décisions validées par Lukas : plusieurs listes partagées, article = nom + quantité, cocher, pas de notification. Nouvelles règles RG-59 à RG-61, RG-41 complétée.
+- Décisions appliquées par défaut, à confirmer : PO-20 à PO-22.
+- Non fait : rendu des écrans non vérifié dans un navigateur (375 px, mode sombre). Au passage, `uv` a été installé sur le poste (winget).

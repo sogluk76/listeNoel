@@ -14,7 +14,11 @@ erDiagram
     gifts ||--o{ comments : "a"
     users ||--o{ comments : "écrit"
     comments ||--o{ notifications : "mentionne"
+    gifts ||--o{ notifications : "nouveau cadeau"
     users ||--o{ notifications : "reçoit"
+    shopping_lists ||--o{ shopping_items : "contient"
+    users |o--o{ shopping_lists : "crée"
+    users |o--o{ shopping_items : "ajoute / coche"
     conversations ||--o{ conversation_members : "réunit"
     users ||--o{ conversation_members : "participe"
     conversations ||--o{ messages : "contient"
@@ -68,10 +72,30 @@ erDiagram
 
     notifications {
         INTEGER id PK
-        INTEGER user_id FK "membre mentionné"
-        INTEGER comment_id FK
+        INTEGER user_id FK "membre notifié"
+        INTEGER comment_id FK "nullable, mention"
+        INTEGER gift_id FK "nullable, nouveau cadeau"
         DATETIME created_at
         DATETIME read_at "nullable, rempli à la lecture"
+    }
+
+    shopping_lists {
+        INTEGER id PK
+        TEXT name "1 à 60 caractères"
+        INTEGER creator_id FK "nullable si compte supprimé"
+        DATETIME created_at
+        DATETIME updated_at "touché à chaque changement d'article"
+    }
+
+    shopping_items {
+        INTEGER id PK
+        INTEGER list_id FK
+        TEXT name "1 à 100 caractères"
+        TEXT quantity "nullable, 30 caractères"
+        INTEGER author_id FK "nullable si compte supprimé"
+        DATETIME checked_at "nullable, rempli si pris"
+        INTEGER checked_by_id FK "nullable"
+        DATETIME created_at
     }
 
     conversations {
@@ -114,7 +138,9 @@ erDiagram
 | `gifts.archived_year` | Année de clôture (RG-39) |
 | `reservations` | « Je m'en occupe », plusieurs par cadeau (RG-26) |
 | `comments` | Fil de discussion d'un cadeau |
-| `notifications` | Mention `@Prénom` dans un commentaire, à signaler au membre `user_id` (RG-42). Non lue ⇔ `read_at IS NULL` |
+| `notifications` | Notification du membre `user_id` : une mention `@Prénom` dans un commentaire (`comment_id`, RG-42) **ou** un nouveau cadeau (`gift_id`, RG-57), jamais les deux. Non lue ⇔ `read_at IS NULL` |
+| `shopping_lists` | Listes de courses, partagées par tous les membres (RG-59) |
+| `shopping_items` | Articles d'une liste. Pris ⇔ `checked_at IS NOT NULL`, par `checked_by_id` (RG-60) |
 | `users.last_seen_at` | Dernière activité du membre, notée au plus une fois par minute (« En ligne », RG-52) |
 | `users.theme` | Thème d'affichage choisi dans le profil (RG-56) : `auto`, `clair`, `sombre`, `neige`, `canneberge`, `epices`, `minuit`. La liste est dans `services/users.py`, les couleurs dans `tokens.css` |
 | `conversations` | Conversation privée : à deux ou groupe (RG-46) |
@@ -192,12 +218,35 @@ CREATE INDEX ix_comments_gift ON comments(gift_id, created_at);
 CREATE TABLE notifications (
     id         INTEGER PRIMARY KEY,
     user_id    INTEGER NOT NULL REFERENCES users(id),
-    comment_id INTEGER NOT NULL REFERENCES comments(id) ON DELETE CASCADE,
+    comment_id INTEGER REFERENCES comments(id) ON DELETE CASCADE,
+    gift_id    INTEGER REFERENCES gifts(id) ON DELETE CASCADE,
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     read_at    DATETIME,
-    UNIQUE (user_id, comment_id)
+    UNIQUE (user_id, comment_id),
+    UNIQUE (user_id, gift_id),
+    CHECK ((comment_id IS NULL) <> (gift_id IS NULL))
 );
 CREATE INDEX ix_notifications_user ON notifications(user_id, read_at);
+
+CREATE TABLE shopping_lists (
+    id         INTEGER PRIMARY KEY,
+    name       TEXT    NOT NULL CHECK (length(trim(name)) > 0),
+    creator_id INTEGER REFERENCES users(id),
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE shopping_items (
+    id            INTEGER PRIMARY KEY,
+    list_id       INTEGER NOT NULL REFERENCES shopping_lists(id) ON DELETE CASCADE,
+    name          TEXT    NOT NULL CHECK (length(trim(name)) > 0),
+    quantity      TEXT,
+    author_id     INTEGER REFERENCES users(id),
+    checked_at    DATETIME,
+    checked_by_id INTEGER REFERENCES users(id),
+    created_at    DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX ix_shopping_items_list ON shopping_items(list_id, id);
 
 CREATE TABLE conversations (
     id         INTEGER PRIMARY KEY,
@@ -241,6 +290,8 @@ Ces contraintes ne sont pas exprimables simplement en SQL. Chacune doit avoir so
 - Aucune réservation ne peut être ajoutée ou supprimée si le cadeau est acheté, retiré ou archivé.
 - Un compte `admin` n'est jamais destinataire, auteur, réservant ni auteur de commentaire.
 - Une notification ne vise jamais le destinataire du cadeau commenté, ni l'auteur du commentaire (RG-42, RG-43).
+- Une notification de nouveau cadeau ne vise jamais l'auteur du cadeau ni le destinataire d'une suggestion (RG-57).
+- Un compte `admin` n'est jamais créateur d'une liste de courses ni auteur d'un article (RG-59).
 - Une conversation à deux a exactement deux participants, deux membres différents (RG-46).
 - Un compte `admin` n'est jamais participant d'une conversation ni auteur d'un message (RG-46).
 - Toute lecture de `conversations`, `messages` ou d'une photo vérifie que le viewer est participant (RG-47).

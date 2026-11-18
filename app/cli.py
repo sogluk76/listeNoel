@@ -33,7 +33,7 @@ def create_admin(name: str | None, password: str | None) -> int:
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(prog="app.cli", description="Liste de Noël")
+    parser = argparse.ArgumentParser(prog="app.cli", description="La Famille")
     commands = parser.add_subparsers(dest="command", required=True)
     admin = commands.add_parser("create-admin", help="Crée le compte admin")
     admin.add_argument("--name")

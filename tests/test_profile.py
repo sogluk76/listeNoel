@@ -13,7 +13,7 @@ def test_us23_changer_puis_supprimer_ma_photo(login, db, alice):
     first = settings.media_dir / alice.photo_path
     assert first.is_file()
     # La photo apparaît dans la liste des personnes et à la connexion
-    assert alice.photo_path in client.get("/").text
+    assert alice.photo_path in client.get("/noel").text
     assert alice.photo_path in client.get(f"/login/avatar?user_id={alice.id}").text
 
     client.post("/profil/photo", files={"photo": ("moi2.png", png_bytes((40, 40)), "image/png")})

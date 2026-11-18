@@ -22,8 +22,8 @@ def scene(db, alice, bob, chloe, make_gift):
 
 
 def test_us10_compteur_sans_les_suggestions_sur_ma_ligne(login, scene, alice, bob):
-    html_alice = login(alice).get("/").text
-    html_bob = login(bob).get("/").text
+    html_alice = login(alice).get("/noel").text
+    html_bob = login(bob).get("/noel").text
     assert _count(html_alice, "Alice") == 1  # son cadeau personnel seulement
     assert _count(html_bob, "Alice") == 2  # personnel + suggestion
 
@@ -125,7 +125,7 @@ def test_rg22_cadeau_retire_visible_des_autres_pas_de_son_auteur(
     html_chloe = login(chloe).get(f"/personnes/{alice.id}").text
     assert "SECRET-SURPRISE" in html_chloe and html_chloe.count("pill--removed") == 2
     # ... et ils ne comptent plus
-    assert _count(login(chloe).get("/").text, "Alice") == 0
+    assert _count(login(chloe).get("/noel").text, "Alice") == 0
 
 
 def test_rg40_cadeau_archive_invisible_partout(login, db, scene, alice, bob):
@@ -135,14 +135,14 @@ def test_rg40_cadeau_archive_invisible_partout(login, db, scene, alice, bob):
     assert "Livre de cuisine" not in client.get(f"/personnes/{alice.id}").text
     assert client.get(f"/cadeaux/{scene['perso'].id}").status_code == 404
     assert "Livre de cuisine" not in client.get("/profil").text
-    assert _count(client.get("/").text, "Alice") == 1  # il reste la suggestion
+    assert _count(client.get("/noel").text, "Alice") == 1  # il reste la suggestion
 
 
 def test_rg11_compte_desactive_masque(login, db, scene, alice, bob):
     alice.is_active = False
     db.commit()
     client = login(bob)
-    assert ">Alice" not in client.get("/").text
+    assert ">Alice" not in client.get("/noel").text
     assert client.get(f"/personnes/{alice.id}").status_code == 404
     assert client.get(f"/cadeaux/{scene['perso'].id}").status_code == 404
 

@@ -61,3 +61,24 @@ Le compteur est calculé au chargement de chaque page, puis rafraîchi toutes le
 - Un membre ne voit que ses propres notifications.
 - Une notification dont le cadeau n'est plus visible (archivé, liste d'un compte désactivé) n'apparaît plus et n'est plus comptée.
 - L'admin n'a ni cloche ni accès à la page (403) ; un visiteur non connecté est renvoyé à la connexion.
+
+---
+
+## US-37 — Être prévenu d'un nouveau cadeau
+
+**En tant que** membre
+**Je veux** être notifié quand quelqu'un ajoute un cadeau que je peux voir
+**Afin de** suivre les listes sans devoir les rouvrir une à une
+
+### Analyse fonctionnelle
+
+À la création d'un cadeau, chaque membre actif qui peut le voir reçoit une notification, sauf son auteur (RG-57). Pour une suggestion faite pour Chloé, Chloé n'est jamais notifiée : elle ne doit pas apprendre qu'on lui a fait une suggestion (RG-30). La notification apparaît dans la cloche et la page « Notifications », mêlée aux mentions par date : « Bob a ajouté « Vélo » à sa liste » ou « Bob a suggéré « Vélo » pour Chloé », avec le prix s'il y en a un. Elle mène à la fiche du cadeau, dont l'ouverture la marque comme lue.
+
+### Critères d'acceptation
+- Cadeau sur sa propre liste : tous les autres membres actifs sont notifiés, pas l'auteur.
+- Suggestion pour D : tous les membres actifs sauf l'auteur et D.
+- **Le destinataire d'une suggestion n'est jamais notifié** et rien ne change sur ses écrans, même si une ligne existait en base par erreur.
+- Ni l'admin ni un compte désactivé ne sont notifiés.
+- La ligne mène à la fiche du cadeau ; ouvrir la fiche marque cette notification comme lue, et seulement celle-là ; ouvrir la page « Notifications » marque tout comme lu.
+- Modifier un cadeau ne crée pas de notification.
+- Supprimer le cadeau supprime ses notifications ; un cadeau retiré ou archivé n'est plus affiché ni compté.

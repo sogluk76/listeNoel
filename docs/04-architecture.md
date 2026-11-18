@@ -41,7 +41,8 @@ liste-noel/
 │   │   ├── gifts.py
 │   │   ├── reservations.py
 │   │   ├── comments.py
-│   │   ├── notifications.py # mentions @Prénom, notifications (RG-42 à RG-45)
+│   │   ├── notifications.py # mentions @Prénom, nouveaux cadeaux, notifications (RG-42 à RG-45, RG-57)
+│   │   ├── shopping.py      # listes de courses partagées (RG-59 à RG-61)
 │   │   ├── messages.py      # ⚠️ messages privés : seul endroit qui décide de qui lit une conversation (RG-46 à RG-55)
 │   │   ├── users.py
 │   │   ├── admin.py         # liste des cadeaux côté admin, clôture de l'année
@@ -49,14 +50,15 @@ liste-noel/
 │   │   └── text.py
 │   ├── routers/
 │   │   ├── auth.py          # /login, /logout
-│   │   ├── people.py        # /
+│   │   ├── people.py        # / (menu des applications, RG-58), /noel (liste des personnes)
 │   │   ├── gifts.py         # /personnes/{id}, /cadeaux/...
+│   │   ├── shopping.py      # /courses/... (listes de courses)
 │   │   ├── comments.py      # /cadeaux/{id}/commentaires, /commentaires/{id}/...
 │   │   ├── notifications.py # /notifications
 │   │   ├── messages.py      # /messages/... (pop-up et pleine page)
 │   │   ├── profile.py       # /profil
 │   │   └── admin.py         # /admin/...
-│   ├── templates/           # pages, fragments HTMX (_*.html), macros.html, admin/, messages/
+│   ├── templates/           # pages, fragments HTMX (_*.html), macros.html, admin/, messages/, shopping/
 │   └── static/              # css/ (tokens, base, components), fonts/, js/ (htmx.min.js, mentions.js, messages.js)
 ├── migrations/              # Alembic
 ├── data/                    # base SQLite et clé de session (hors git)

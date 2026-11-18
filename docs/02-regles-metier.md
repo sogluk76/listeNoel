@@ -29,9 +29,13 @@ Chaque règle a un identifiant `RG-xx` cité dans les user stories et dans les t
 - **RG-10** Les mots de passe sont stockés **hachés** (Argon2), jamais en clair. L'admin définit le mot de passe initial et chaque membre peut ensuite changer le sien.
 - **RG-11** Un compte désactivé ne peut plus se connecter, n'apparaît plus dans les listes de personnes et ses cadeaux sont masqués. Ses données sont conservées.
 
+## Menu des applications
+
+- **RG-58** Le site s'appelle **« La Famille »** et réunit plusieurs applications. Après la connexion, le membre arrive sur le **menu** (`/`), qui propose une tuile par application : « Liste de Noël » (`/noel`) et « Liste de courses » (`/courses`). Le logo de l'en-tête ramène au menu. La cloche, la bulle « Messages », le profil et le thème sont communs à toutes les applications. Le menu et les applications sont réservés aux membres (RG-09).
+
 ## Liste des personnes
 
-- **RG-12** La liste affiche tous les membres actifs, **moi compris**, par ordre alphabétique.
+- **RG-12** La liste (`/noel`, page d'accueil de la liste de Noël) affiche tous les membres actifs, **moi compris**, par ordre alphabétique.
 - **RG-13** Le compteur affiché à côté de chaque prénom est le **nombre de cadeaux visibles par le viewer** sur la liste de cette personne (cf. matrice RG-30), hors cadeaux retirés et archivés.
 
 ## Cadeaux
@@ -72,6 +76,7 @@ Chaque règle a un identifiant `RG-xx` cité dans les user stories et dans les t
 | Écran commentaires (y compris par URL directe) | ❌ 403 | ✅ |
 | Tri par statut | ❌ | ✅ |
 | Mention `@D` dans le fil et notification associée (RG-43) | ❌ jamais notifié | ✅ pour les autres membres |
+| Notification « nouvelle suggestion pour D » (RG-57) | ❌ jamais notifié | ✅ pour les autres membres, sauf l'auteur |
 
 > ⚠️ La règle s'applique **côté serveur** (requêtes et contrôles d'accès), pas seulement à l'affichage. Une URL tapée à la main ne doit rien révéler. Elle doit être couverte par des tests dédiés.
 
@@ -100,7 +105,8 @@ Chaque règle a un identifiant `RG-xx` cité dans les user stories et dans les t
 - **RG-42** Dans un commentaire, `@` suivi du prénom d'un membre actif est une **mention**. Le prénom est reconnu sans tenir compte de la casse ni des accents, et doit être complet (`@Bobby` ne mentionne pas Bob). Le `@` ne doit pas suivre une lettre ou un chiffre (une adresse mail n'est pas une mention). Chaque membre mentionné reçoit **une** notification par message, sauf l'auteur du message.
 - **RG-43** Le **destinataire du cadeau n'est jamais notifié** et ne peut pas être mentionné dans le fil de son propre cadeau : son prénom y reste du texte simple. Le commentaire est accepté normalement. C'est une conséquence de RG-30 : une notification lui révélerait qu'on parle d'un de ses cadeaux.
 - **RG-44** Les notifications suivent le message : modifier un message ajoute ou retire les notifications selon ses mentions, supprimer un message (ou son cadeau) les supprime.
-- **RG-45** Une **cloche** dans l'en-tête des pages membre affiche le nombre de notifications non lues : les mentions, plus **une par conversation privée qui contient du non-lu** (RG-50). La page « Notifications » liste d'abord ces conversations, puis les mentions de la plus récente à la plus ancienne, et **marque toutes les mentions comme lues à l'ouverture**. Ouvrir la page de commentaires d'un cadeau marque aussi comme lues les notifications de ce fil (et seulement celles-là) ; le rafraîchissement automatique du fil ne marque rien. Une notification n'est affichée et comptée que si le membre a encore le droit de voir le fil concerné (RG-30, RG-11, RG-40). Les notifications n'existent que sur le site : pas de mail, pas de notification sur le téléphone. L'admin n'en a pas.
+- **RG-45** Une **cloche** dans l'en-tête des pages membre affiche le nombre de notifications non lues : les mentions, plus **une par conversation privée qui contient du non-lu** (RG-50). La page « Notifications » liste d'abord ces conversations, puis les mentions de la plus récente à la plus ancienne, et **marque toutes les mentions comme lues à l'ouverture**. Ouvrir la page de commentaires d'un cadeau marque aussi comme lues les notifications de ce fil (et seulement celles-là) ; le rafraîchissement automatique du fil ne marque rien. Une notification n'est affichée et comptée que si le membre a encore le droit de voir le fil concerné (RG-30, RG-11, RG-40). Les notifications n'existent que sur le site : pas de mail, pas de notification sur le téléphone. L'admin n'en a pas. Les nouveaux cadeaux (RG-57) sont listés et comptés avec les mentions.
+- **RG-57** Quand un membre **crée un cadeau**, chaque membre actif qui peut le voir reçoit **une** notification, sauf l'auteur : pour un cadeau sur sa propre liste, tous les autres membres (« Bob a ajouté « Vélo » à sa liste ») ; pour une suggestion pour D, tout le monde sauf l'auteur **et D** (« Bob a suggéré « Vélo » pour Chloé »). D n'est jamais notifié d'une suggestion (RG-30). La ligne affiche le prix s'il y en a un et mène à la fiche du cadeau. Elle est marquée lue à l'ouverture de la page « Notifications » ou de la fiche du cadeau. Modifier un cadeau ne notifie pas. Supprimer le cadeau supprime ses notifications ; un cadeau retiré, archivé ou qui n'est plus visible n'est plus affiché ni compté. Seuls les cadeaux créés depuis la mise en place de la règle génèrent une notification.
 
 ## Messages privés
 
@@ -123,6 +129,14 @@ Les messages privés ne sont rattachés à aucun cadeau : la matrice RG-30 ne s'
 - **RG-54** Compte **désactivé** : ses conversations restent lisibles, mais on ne peut plus lui écrire à deux (les groupes continuent). Compte **supprimé** (RG-41) : ses messages et ses conversations à deux disparaissent, il est retiré des groupes. La **clôture de l'année** ne touche pas aux messages.
 - **RG-55** La messagerie s'ouvre dans une **pop-up** en bas à droite de toutes les pages membre, depuis une bulle « Messages » (plein écran sur téléphone). Elle reste ouverte au même endroit quand on change de page. La conversation affichée se rafraîchit toutes les **5 secondes**, la bulle et la cloche toutes les **20 secondes**. Sans JavaScript, la bulle mène à la même messagerie en pleine page (`/messages`).
 
+## Listes de courses
+
+Les listes de courses ne sont rattachées à aucun cadeau : la matrice RG-30 ne s'y applique pas.
+
+- **RG-59** Tout membre actif peut créer une **liste de courses** nommée (1 à 60 caractères, espaces superflus retirés). **Toutes les listes sont partagées** : chaque membre les voit, les renomme et les supprime (après confirmation, avec tous leurs articles) (PO-20). Elles sont triées de la plus récemment modifiée à la plus ancienne, avec le nombre d'articles restant à acheter. L'admin n'y a aucun accès (403).
+- **RG-60** Un **article** a un nom (1 à 100 caractères) et une quantité libre facultative (« 2 kg », 30 caractères au plus). Tout membre peut en ajouter, **cocher** un article pris, le décocher, le supprimer, et **retirer d'un coup tous les articles cochés**. Les articles à acheter sont affichés dans l'ordre d'ajout avec « Ajouté par … » ; les articles cochés descendent dans « Dans le panier », le dernier coché en premier, avec « Pris par … » (PO-22). Les actions se font sans recharger la page (HTMX), et fonctionnent aussi sans JavaScript. Un article d'une autre liste répond 404. Les listes de courses ne génèrent aucune notification.
+- **RG-61** Compte **supprimé** (RG-41) : ses listes et les articles qu'il a ajoutés ou cochés **restent**, sans auteur (« un ancien membre ») (PO-21). Compte **désactivé** : rien ne change dans les listes. La clôture de l'année ne touche pas aux listes de courses.
+
 ## Suppression d'un compte
 
 - **RG-41** L'admin peut supprimer **définitivement** le compte d'un membre, après confirmation. Tout ce qui s'y rattache est supprimé avec lui :
@@ -133,5 +147,7 @@ Les messages privés ne sont rattachés à aucun cadeau : la matrice RG-30 ne s'
   - ses messages privés, ses conversations à deux (en entier) et sa place dans les groupes (RG-54) ;
   - sa photo et les images des cadeaux supprimés ;
   - les cadeaux archivés qui le concernent.
+
+  Seule exception : ses **listes de courses** et les articles qu'il y a ajoutés **restent** à la famille, sans auteur (RG-61).
 
   Un cadeau qu'il avait marqué « acheté » redevient « réservé » (s'il reste des réservants) ou disponible. Le compte admin ne peut pas être supprimé depuis le panel. La fiche du membre n'affiche aucun détail sur ce qui sera supprimé (RG-23). Pour une absence temporaire, la désactivation (RG-11) reste la bonne option.

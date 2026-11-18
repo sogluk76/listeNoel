@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 from app.models import Comment, Gift, Notification, Reservation, User
 from app.services import images
 from app.services import messages as messages_service
+from app.services import shopping as shopping_service
 from app.services.text import fold
 
 
@@ -29,6 +30,7 @@ def delete_member(db: Session, member: User) -> None:
     Ses messages privés et ses conversations à deux disparaissent également (RG-54).
     """
     private_photos = messages_service.purge_member(db, member)
+    shopping_service.purge_member(db, member)  # ses listes de courses restent (RG-61)
     for notification in db.scalars(select(Notification).where(Notification.user_id == member.id)):
         db.delete(notification)
     for reservation in db.scalars(select(Reservation).where(Reservation.user_id == member.id)):

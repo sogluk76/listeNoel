@@ -74,11 +74,11 @@ def test_us06_modifier_et_desactiver(login, db, admin, alice, bob, make_gift):
     assert dup.status_code == 422
 
     client.post(f"/admin/membres/{alice.id}", data={"name": "Alicia", "is_active": "1"})
-    assert "Alicia" in login(bob).get("/").text
+    assert "Alicia" in login(bob).get("/noel").text
 
     client.post(f"/admin/membres/{alice.id}", data={"name": "Alicia"})  # case décochée
     assert alice_client.get("/").headers["location"] == "/login"  # session invalidée
-    assert "Alicia" not in login(bob).get("/").text
+    assert "Alicia" not in login(bob).get("/noel").text
 
     client.post(f"/admin/membres/{alice.id}", data={"name": "Alicia", "is_active": "1"})
     assert "Vélo" in login(bob).get(f"/personnes/{alice.id}").text  # données retrouvées

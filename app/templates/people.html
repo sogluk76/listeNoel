@@ -1,9 +1,11 @@
 {% extends "base.html" %}
 {% from "macros.html" import avatar, icon %}
+{% block title %}Liste de Noël · La Famille{% endblock %}
 {% block content %}
+<a class="back-link" href="/">{{ icon("back") }} Menu</a>
 <div class="page-head">
   <div>
-    <h1>La famille</h1>
+    <h1>Liste de Noël</h1>
     <p class="muted">Choisis une personne pour voir sa liste.</p>
   </div>
   <a class="btn btn--primary" href="/cadeaux/nouveau">{{ icon("plus") }} Ajouter un cadeau</a>

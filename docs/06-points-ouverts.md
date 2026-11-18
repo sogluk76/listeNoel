@@ -30,3 +30,6 @@ Légende : 🟡 appliqué par défaut, à confirmer · ☐ encore ouvert · ☑ 
 | 🟡 PO-17 | Messages : sans JavaScript | La bulle mène à la messagerie en pleine page `/messages`, qui sert aussi de cible aux liens directs (RG-55) |
 | 🟡 PO-18 | Messages : conversation à deux ouverte sans rien envoyer | Elle n'apparaît dans la liste de personne tant qu'elle est vide |
 | 🟡 PO-19 | Messages : présence | Le rafraîchissement automatique de la bulle compte comme une activité : « En ligne » veut dire « a le site ouvert » (RG-52) |
+| 🟡 PO-20 | Courses : qui renomme et supprime une liste | Tout membre, pas seulement son créateur ; la suppression demande une confirmation (RG-59) |
+| 🟡 PO-21 | Courses : compte supprimé | Ses listes et ses articles restent, affichés « un ancien membre », au lieu d'être supprimés avec lui (RG-61) |
+| 🟡 PO-22 | Courses : articles cochés | Ils descendent dans « Dans le panier » (dernier coché en premier) et restent jusqu'à « Retirer les articles cochés » (RG-60) |

@@ -280,3 +280,53 @@ class Message(Base):
 
     conversation: Mapped[Conversation] = relationship(back_populates="messages")
     author: Mapped[User] = relationship()
+
+
+class ShoppingList(Base):
+    """Liste de courses nommée, partagée entre tous les membres (RG-59)."""
+
+    __tablename__ = "shopping_lists"
+    __table_args__ = (CheckConstraint("length(trim(name)) > 0", name="ck_shopping_lists_name"),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    name: Mapped[str] = mapped_column(String(60), nullable=False)
+    # Vide si le compte du créateur a été supprimé : la liste reste à la famille (RG-41).
+    creator_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"))
+    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=utcnow)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime, nullable=False, default=utcnow, onupdate=utcnow
+    )
+
+    creator: Mapped[User | None] = relationship()
+    items: Mapped[list["ShoppingItem"]] = relationship(
+        back_populates="shopping_list", cascade="all, delete-orphan", order_by="ShoppingItem.id"
+    )
+
+
+class ShoppingItem(Base):
+    """Article d'une liste de courses : un nom, une quantité facultative (RG-60)."""
+
+    __tablename__ = "shopping_items"
+    __table_args__ = (
+        CheckConstraint("length(trim(name)) > 0", name="ck_shopping_items_name"),
+        Index("ix_shopping_items_list", "list_id", "id"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    list_id: Mapped[int] = mapped_column(
+        ForeignKey("shopping_lists.id", ondelete="CASCADE"), nullable=False
+    )
+    name: Mapped[str] = mapped_column(String(100), nullable=False)
+    quantity: Mapped[str | None] = mapped_column(String(30))
+    author_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"))
+    checked_at: Mapped[datetime | None] = mapped_column(DateTime)
+    checked_by_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"))
+    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=utcnow)
+
+    shopping_list: Mapped[ShoppingList] = relationship(back_populates="items")
+    author: Mapped[User | None] = relationship(foreign_keys=[author_id])
+    checked_by: Mapped[User | None] = relationship(foreign_keys=[checked_by_id])
+
+    @property
+    def is_checked(self) -> bool:
+        return self.checked_at is not None

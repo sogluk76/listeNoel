@@ -87,6 +87,6 @@ La page `/admin/login` demande un identifiant et un mot de passe. Le compte admi
 - La commande `create-admin` crée un compte de rôle `admin`, et refuse d'en créer un si le prénom est déjà pris.
 - Une connexion admin correcte redirige vers `/admin`.
 - Un membre ne peut pas se connecter via `/admin/login`.
-- Un admin connecté qui ouvre `/` ou `/personnes/...` reçoit une erreur 403.
+- Un admin connecté qui ouvre `/`, `/noel` ou `/personnes/...` reçoit une erreur 403.
 - Un membre connecté qui ouvre `/admin/...` reçoit une erreur 403.
 - Les pages `/admin/...` sans session admin redirigent vers `/admin/login`.

@@ -51,7 +51,7 @@ def test_us01_compte_desactive_ne_peut_pas_se_connecter(anonymous, db, alice):
 
 
 def test_us01_page_membre_sans_session_redirige_vers_login(anonymous):
-    for path in ("/", "/profil", "/personnes/1", "/cadeaux/1", "/cadeaux/nouveau"):
+    for path in ("/", "/noel", "/profil", "/personnes/1", "/cadeaux/1", "/cadeaux/nouveau"):
         response = anonymous.get(path)
         assert response.status_code == 303 and response.headers["location"] == "/login"
 

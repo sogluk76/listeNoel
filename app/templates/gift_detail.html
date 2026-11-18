@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 {% from "macros.html" import avatar, icon, pill, csrf %}
-{% block title %}{{ view.gift.name }} · Liste de Noël{% endblock %}
+{% block title %}{{ view.gift.name }} · La Famille{% endblock %}
 {% block content %}
 {% set gift = view.gift %}
 <a class="back-link" href="/personnes/{{ gift.recipient_id }}">{{ icon("back") }} {% if view.is_mine %}Ma liste{% else %}Liste de {{ gift.recipient.first_name }}{% endif %}</a>
